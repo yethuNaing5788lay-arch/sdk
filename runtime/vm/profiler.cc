@@ -702,9 +702,7 @@ SampleBlockBuffer::SampleBlockBuffer(intptr_t blocks,
   const intptr_t size = Utils::RoundUp(
       blocks * samples_per_block * sizeof(Sample), VirtualMemory::PageSize());
   const bool executable = false;
-  const bool compressed = false;
-  memory_ =
-      VirtualMemory::Allocate(size, executable, compressed, "dart-profiler");
+  memory_ = VirtualMemory::Allocate(size, executable, "dart-profiler");
   if (memory_ == nullptr) {
     OUT_OF_MEMORY();
   }
@@ -1051,6 +1049,10 @@ class ProfilerDartStackWalker : public ProfilerStackWalker {
         StubCode::InInvocationStub(thread_, Stack(sp, 0),
                                    is_interpreted_frame) ||
         StubCode::InInvocationStub(thread_, Stack(sp, 1), is_interpreted_frame);
+#elif defined(TARGET_ARCH_ARM) && defined(DART_INCLUDE_SIMULATOR)
+        StubCode::InInvocationStub(thread_, reinterpret_cast<uword>(pc_),
+                                   is_interpreted_frame) ||
+        StubCode::InInvocationStub(thread_, lr, is_interpreted_frame);
 #else
         StubCode::InInvocationStub(thread_, lr, is_interpreted_frame);
 #endif

@@ -1017,20 +1017,67 @@ void ARM64Decoder::DecodeSystem(Instr* instr) {
 }
 
 void ARM64Decoder::DecodeUnconditionalBranchReg(Instr* instr) {
-  if ((instr->Bits(0, 5) == 0) && (instr->Bits(10, 5) == 0) &&
-      (instr->Bits(16, 5) == 0x1f)) {
-    switch (instr->Bits(21, 4)) {
+  if ((instr->Bits(12, 4) == 0) && (instr->Bits(16, 5) == 0x1f)) {
+    switch (instr->Bits(21, 2)) {
       case 0:
-        Format(instr, "br 'rn");
+        if (instr->Bit(11) == 0) {
+          Format(instr, "br 'rn");
+        } else {
+          if (instr->Bit(24) == 0) {
+            if (instr->Bit(10) == 0) {
+              Format(instr, "braaz 'rn");
+            } else {
+              Format(instr, "brabz 'rn");
+            }
+          } else {
+            if (instr->Bit(10) == 0) {
+              Format(instr, "braa 'rn, 'rt");
+            } else {
+              Format(instr, "brab 'rn, 'rt");
+            }
+          }
+        }
         break;
       case 1:
-        Format(instr, "blr 'rn");
+        if (instr->Bit(11) == 0) {
+          Format(instr, "blr 'rn");
+        } else {
+          if (instr->Bit(24) == 0) {
+            if (instr->Bit(10) == 0) {
+              Format(instr, "blraaz 'rn");
+            } else {
+              Format(instr, "blrabz 'rn");
+            }
+          } else {
+            if (instr->Bit(10) == 0) {
+              Format(instr, "blraa 'rn, 'rt");
+            } else {
+              Format(instr, "blrab 'rn, 'rt");
+            }
+          }
+        }
         break;
       case 2:
-        if (instr->RnField() == LINK_REGISTER) {
-          Format(instr, "ret");
+        if (instr->Bit(11) == 0) {
+          if (instr->RnField() == LINK_REGISTER) {
+            Format(instr, "ret");
+          } else {
+            Format(instr, "ret 'rn");
+          }
         } else {
-          Format(instr, "ret 'rn");
+          if (instr->Bit(10) == 0) {
+            if (instr->RnField() == LINK_REGISTER) {
+              Format(instr, "retaa");
+            } else {
+              Format(instr, "retaa 'rn");
+            }
+          } else {
+            if (instr->RnField() == LINK_REGISTER) {
+              Format(instr, "retab");
+            } else {
+              Format(instr, "retab 'rn");
+            }
+          }
         }
         break;
       default:
@@ -1492,6 +1539,16 @@ void ARM64Decoder::DecodeSIMDTwoReg(Instr* instr) {
 }
 
 void ARM64Decoder::DecodeDPSimd1(Instr* instr) {
+  // CNT Vd.8B, Vn.8B (Q=0, U=0, size=00, opcode=00101).
+  if ((instr->InstructionBits() & 0xFFFFFC00) == 0x0E205800) {
+    Format(instr, "vcnt 'vd, 'vn");
+    return;
+  }
+  // UADDLV Hd, Vn.8B (Q=0, U=1, size=00, across-lanes ADDLV form).
+  if ((instr->InstructionBits() & 0xFFFFFC00) == 0x2E303800) {
+    Format(instr, "vuaddlv 'vd, 'vn");
+    return;
+  }
   if (instr->IsSIMDCopyOp()) {
     DecodeSIMDCopy(instr);
   } else if (instr->IsSIMDThreeSameOp()) {

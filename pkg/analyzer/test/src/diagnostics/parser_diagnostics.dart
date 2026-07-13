@@ -36,20 +36,11 @@ class ParserDiagnosticsTest {
     );
     if (actual != expected) {
       NodeTextExpectationsCollector.add(actual);
-      printPrettyDiff(expected, actual);
+      if (NodeTextExpectationsCollector.shouldPrintFailureDetails) {
+        printPrettyDiff(expected, actual);
+      }
       fail('See the difference above.');
     }
-  }
-
-  ParseStringResult parseStringWithErrors(
-    String content, {
-    FeatureSet? featureSet,
-  }) {
-    return parseString(
-      content: content,
-      featureSet: featureSet ?? testFeatureSet,
-      throwIfDiagnostics: false,
-    );
   }
 
   /// Parses [content] without checking diagnostics.
@@ -93,7 +84,9 @@ class ParserDiagnosticsTest {
     );
     if (actual != content) {
       NodeTextExpectationsCollector.add(actual);
-      printPrettyDiff(content, actual);
+      if (NodeTextExpectationsCollector.shouldPrintFailureDetails) {
+        printPrettyDiff(content, actual);
+      }
       fail('See the difference above.');
     }
 
@@ -111,16 +104,14 @@ class ParserDiagnosticsTest {
       sink: sink,
       configuration: ElementPrinterConfiguration(),
     );
-    node.accept(
-      ResolvedAstPrinter(
-        sink: sink,
-        elementPrinter: elementPrinter,
-        configuration: ResolvedNodeTextConfiguration()
-          ..withTokenPreviousNext = withTokenPreviousNext,
-        withResolution: false,
-        withOffsets: withOffsets,
-      ),
-    );
+    ResolvedAstPrinter(
+      sink: sink,
+      elementPrinter: elementPrinter,
+      configuration: ResolvedNodeTextConfiguration()
+        ..withTokenPreviousNext = withTokenPreviousNext,
+      withResolution: false,
+      withOffsets: withOffsets,
+    ).writeNode(node);
     return buffer.toString();
   }
 }

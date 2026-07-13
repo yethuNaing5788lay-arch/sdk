@@ -52,28 +52,13 @@ class TypedLiteralResolver {
 
   final bool _strictInference;
 
-  factory TypedLiteralResolver(
-    ResolverVisitor resolver,
-    TypeSystemImpl typeSystem,
-    TypeProviderImpl typeProvider,
-    AnalysisOptions analysisOptions,
-  ) {
-    return TypedLiteralResolver._(
-      resolver,
-      typeSystem,
-      typeProvider,
-      resolver.diagnosticReporter,
-      analysisOptions.strictInference,
-    );
-  }
-
-  TypedLiteralResolver._(
+  TypedLiteralResolver(
     this._resolver,
     this._typeSystem,
     this._typeProvider,
-    this._diagnosticReporter,
-    this._strictInference,
-  );
+    AnalysisOptions analysisOptions,
+  ) : _diagnosticReporter = _resolver.diagnosticReporter,
+      _strictInference = analysisOptions.strictInference;
 
   DynamicTypeImpl get _dynamicType => DynamicTypeImpl.instance;
 
@@ -111,7 +96,7 @@ class TypedLiteralResolver {
       );
     }
 
-    node.typeArguments?.accept(_resolver);
+    node.typeArguments?.accept2(_resolver);
     _resolveElements(node.elements, context);
     var staticType = _resolveListLiteral2(
       inferrer,
@@ -197,7 +182,7 @@ class TypedLiteralResolver {
       node.contextType = null;
     }
 
-    node.typeArguments?.accept(_resolver);
+    node.typeArguments?.accept2(_resolver);
     _resolveElements(node.elements, context);
     _resolveSetOrMapLiteral2(
       inferrer,
@@ -591,6 +576,10 @@ class TypedLiteralResolver {
       mustBeAMap = mustBeAMap || inferredType.mustBeMap;
       canBeASet = canBeASet && inferredType.canBeSet;
       mustBeASet = mustBeASet || inferredType.mustBeSet;
+    }
+    if (literalResolution.kind == _LiteralResolutionKind.map &&
+        literalResolution.contextType != null) {
+      return _toMapType(inferrer, literalResolution, literal, inferredTypes);
     }
     if (canBeASet && mustBeASet) {
       return _toSetType(inferrer, literalResolution, literal, inferredTypes);

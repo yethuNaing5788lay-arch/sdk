@@ -8,7 +8,7 @@ import 'dart:convert' show unicodeReplacementCharacterRune;
 import 'dart:typed_data' show Uint8List;
 
 import 'abstract_scanner.dart'
-    show LanguageVersionChanged, ScannerConfiguration;
+    show LanguageVersionChanged, ScannerConfiguration, LineStarts;
 import 'string_scanner.dart' show StringScanner;
 import 'token.dart' show Token;
 import 'utf8_bytes_scanner.dart' show Utf8BytesScanner;
@@ -47,10 +47,28 @@ abstract class Scanner {
 
 class ScannerResult {
   final Token tokens;
-  final List<int> lineStarts;
+  final LineStarts lineStarts;
   final bool hasErrors;
 
   ScannerResult(this.tokens, this.lineStarts, this.hasErrors);
+}
+
+/// Scan/tokenize that start of the given UTF8 [bytes]. Attempts to only scan
+/// the directives.
+ScannerResult scanDirectives(
+  Uint8List bytes, {
+  ScannerConfiguration? configuration,
+  LanguageVersionChanged? languageVersionChanged,
+}) {
+  Utf8BytesScanner scanner = new Utf8BytesScanner(
+    bytes,
+    configuration: configuration,
+    includeComments: false,
+    languageVersionChanged: languageVersionChanged,
+    allowLazyStrings: false,
+  );
+  Token tokens = scanner.tokenizeDirectives();
+  return new ScannerResult(tokens, scanner.lineStarts, scanner.hasErrors);
 }
 
 /// Scan/tokenize the given UTF8 [bytes].

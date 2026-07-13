@@ -1259,8 +1259,8 @@ abstract interface class HttpClient {
 
   static const int defaultHttpsPort = 443;
 
-  /// Enable logging of HTTP requests from all [HttpClient]s to the developer
-  /// timeline.
+  /// Enable logging of HTTP requests and WebSocket connections
+  /// from all [HttpClient]s to the developer timeline.
   ///
   /// Default is `false`.
   static set enableTimelineLogging(bool value) {
@@ -1276,8 +1276,8 @@ abstract interface class HttpClient {
     _enableTimelineLogging = enabled;
   }
 
-  /// Current state of HTTP request logging from all [HttpClient]s to the
-  /// developer timeline.
+  /// Current state of HTTP request and WebSocket timeline logging
+  /// from all [HttpClient]s to the developer timeline.
   ///
   /// Default is `false`.
   static bool get enableTimelineLogging => _enableTimelineLogging;
@@ -1779,7 +1779,8 @@ abstract interface class HttpClientRequest implements IOSink {
   ///
   /// All headers added to the request will be added to the redirection
   /// request(s) except when forwarding sensitive headers like
-  /// "Authorization", "WWW-Authenticate", and "Cookie". Those headers
+  /// "Authorization", "WWW-Authenticate", "Proxy-Authorization",
+  /// "Proxy-Authenticate", and "Cookie". Those headers
   /// will be skipped if following a redirect to a domain that is not a
   /// subdomain match or exact match of the initial domain.
   /// For example, a redirect from "foo.com" to either "foo.com" or

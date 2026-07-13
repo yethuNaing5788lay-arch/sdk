@@ -170,6 +170,7 @@ class BundleWriter {
 
   void _writeClassFragment(ClassFragmentImpl fragment) {
     _writeTemplateFragment(fragment, () {
+      _sink.writeUint30(fragment.withClauseMixinStartIndex);
       _resolutionSink.withTypeParameters(fragment.element.typeParameters, () {
         _sink.writeList(fragment.typeParameters, _writeTypeParameterFragment);
         _resolutionSink._writeMetadata(fragment.metadata);
@@ -191,15 +192,16 @@ class BundleWriter {
     _sink.writeList(elements, (element) {
       _writeReference(element.reference);
       _writeFragments(element.fragments);
+      _writeFormalParameterElementFlags(element);
       _writeOptionalFragmentId(element.previousFragmentOfDifferentKind);
       element.writeFlags(_sink);
       assert(element.typeParameters.isEmpty);
 
       _writeElementResolution(() {
+        _writeFormalParameterElementResolutions(element);
         _resolutionSink.writeType(element.returnType);
         _resolutionSink.writeElement(element.superConstructor);
         _resolutionSink.writeElement(element.redirectedConstructor);
-        // TODO(scheglov): formal parameters
       });
     });
   }
@@ -291,6 +293,7 @@ class BundleWriter {
 
   void _writeEnumFragment(EnumFragmentImpl fragment) {
     _writeTemplateFragment(fragment, () {
+      _sink.writeUint30(fragment.withClauseMixinStartIndex);
       _resolutionSink.withTypeParameters(fragment.element.typeParameters, () {
         _sink.writeList(fragment.typeParameters, _writeTypeParameterFragment);
         _resolutionSink._writeMetadata(fragment.metadata);
@@ -475,6 +478,25 @@ class BundleWriter {
     _sink.writeBytes(bytes);
   }
 
+  void _writeFormalParameterElementFlags(ExecutableElementImpl executable) {
+    var elements = executable.formalParametersIncludingRecovery;
+    for (var element in elements) {
+      element.writeFlags(_sink);
+    }
+  }
+
+  void _writeFormalParameterElementResolutions(
+    ExecutableElementImpl executable,
+  ) {
+    var elements = executable.formalParametersIncludingRecovery;
+    for (var element in elements) {
+      _resolutionSink.writeType(element.type);
+      if (element is FieldFormalParameterElementImpl) {
+        _resolutionSink.writeElement(element.field);
+      }
+    }
+  }
+
   /// Write a formal parameter fragment in the signature of a top-level
   /// function, constructor, method, getter, or setter declaration.
   // TODO(scheglov): Deduplicate parameter writing implementation.
@@ -492,23 +514,7 @@ class BundleWriter {
     fragment.writeFlags(_sink);
 
     _resolutionSink._writeMetadata(fragment.metadata);
-
-    _resolutionSink.withTypeParameters(fragment.element.typeParameters, () {
-      _sink.writeList(fragment.typeParameters, _writeTypeParameterFragment);
-      _writeTypeParameterElementResolutions(fragment.element.typeParameters);
-      _sink.writeList(fragment.formalParameters, _writeFormalParameterFragment);
-      _resolutionSink.writeBool(fragment.element.inheritsCovariant);
-      _resolutionSink.writeType(fragment.element.type);
-      _resolutionSink._writeOptionalNode(fragment.constantInitializer);
-
-      if (fragment is FieldFormalParameterFragmentImpl) {
-        // TODO(scheglov): formal parameter types? Anything else?
-        var element = fragment.element;
-        _resolutionSink.writeElement(
-          element is FieldFormalParameterElementImpl ? element.field : null,
-        );
-      }
-    });
+    _resolutionSink._writeOptionalNode(fragment.constantInitializer);
   }
 
   void _writeFragmentId(FragmentImpl fragment) {
@@ -528,11 +534,13 @@ class BundleWriter {
     _sink.writeList(elements, (element) {
       _writeReference(element.reference);
       _writeFragments(element.fragments);
+      _writeFormalParameterElementFlags(element);
       _writeOptionalFragmentId(element.previousFragmentOfDifferentKind);
       element.writeFlags(_sink);
       assert(element.typeParameters.isEmpty);
 
       _writeElementResolution(() {
+        _writeFormalParameterElementResolutions(element);
         _resolutionSink.writeType(element.returnType);
       });
     });
@@ -619,6 +627,7 @@ class BundleWriter {
     _sink.writeList(elements, (element) {
       _writeReference(element.reference);
       _writeFragments(element.fragments);
+      _writeFormalParameterElementFlags(element);
       _writeOptionalFragmentId(element.previousFragmentOfDifferentKind);
       element.writeFlags(_sink);
       _sink._writeTopLevelInferenceError(element.typeInferenceError);
@@ -626,8 +635,8 @@ class BundleWriter {
       _writeElementResolution(() {
         _resolutionSink.withTypeParameters(element.typeParameters, () {
           _writeTypeParameterElementResolutions(element.typeParameters);
+          _writeFormalParameterElementResolutions(element);
           _resolutionSink.writeType(element.returnType);
-          // TODO(scheglov): formal parameters
         });
       });
     });
@@ -746,13 +755,14 @@ class BundleWriter {
     _sink.writeList(elements, (element) {
       _writeReference(element.reference);
       _writeFragments(element.fragments);
+      _writeFormalParameterElementFlags(element);
       _writeOptionalFragmentId(element.previousFragmentOfDifferentKind);
       element.writeFlags(_sink);
       assert(element.typeParameters.isEmpty);
 
       _writeElementResolution(() {
+        _writeFormalParameterElementResolutions(element);
         _resolutionSink.writeType(element.returnType);
-        // TODO(scheglov): formal parameter types? Anything else?
       });
     });
   }
@@ -782,12 +792,14 @@ class BundleWriter {
     _sink.writeList(elements, (element) {
       _writeReference(element.reference);
       _writeFragments(element.fragments);
+      _writeFormalParameterElementFlags(element);
       _writeOptionalFragmentId(element.previousFragmentOfDifferentKind);
       element.writeFlags(_sink);
 
       _writeElementResolution(() {
         _resolutionSink.withTypeParameters(element.typeParameters, () {
           _writeTypeParameterElementResolutions(element.typeParameters);
+          _writeFormalParameterElementResolutions(element);
           _resolutionSink.writeType(element.returnType);
         });
       });
@@ -955,9 +967,11 @@ class ResolutionSink extends BinaryWriter {
       case FormalParameterElementImpl():
         writeEnum(ElementTag.formalParameter);
         var enclosingElement = element.enclosingElement;
-        enclosingElement as ExecutableElement;
+        enclosingElement as ExecutableElementImpl;
         writeElement(enclosingElement);
-        var index = enclosingElement.formalParameters.indexOf(element);
+        var index = enclosingElement.formalParametersIncludingRecovery.indexOf(
+          element,
+        );
         assert(index >= 0);
         writeUint30(index);
       case PrefixElementImpl():
@@ -1076,7 +1090,7 @@ class ResolutionSink extends BinaryWriter {
 
   void _writeNode(AstNode node) {
     var astWriter = AstBinaryWriter(sink: this);
-    node.accept(astWriter);
+    node.accept2(astWriter);
   }
 
   void _writeNullabilitySuffix(NullabilitySuffix suffix) {

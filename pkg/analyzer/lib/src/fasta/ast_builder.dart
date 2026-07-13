@@ -578,8 +578,9 @@ class AstBuilder extends StackListener {
   }
 
   @override
-  void beginPrimaryConstructorBody(Token beginToken) {
+  void beginPrimaryConstructorBody(Token beginToken, Token? augmentToken) {
     debugEvent("PrimaryConstructorBody");
+    push(_Modifiers()..augmentKeyword = augmentToken);
   }
 
   @override
@@ -1854,14 +1855,18 @@ class AstBuilder extends StackListener {
         thisKeyword == null,
         "Can't have both 'this' and 'super' in a parameter.",
       );
-      if (functionTypedSuffix == null &&
-          keyword is KeywordToken &&
-          keyword.keyword == Keyword.VAR) {
-        handleRecoverableError(
-          fe_diag.extraneousModifier.withArguments(lexeme: keyword),
-          keyword,
-          keyword,
-        );
+      if (memberKind != MemberKind.PrimaryConstructor) {
+        // The parser reports a special error for declaring parameters, so we
+        // avoid emitting this error here for primary constructors.
+        if (functionTypedSuffix == null &&
+            keyword is KeywordToken &&
+            keyword.keyword == Keyword.VAR) {
+          handleRecoverableError(
+            fe_diag.extraneousModifier.withArguments(lexeme: keyword),
+            keyword,
+            keyword,
+          );
+        }
       }
       parameter = SuperFormalParameterImpl(
         comment: comment,
@@ -2758,6 +2763,7 @@ class AstBuilder extends StackListener {
     var body = pop() as FunctionBodyImpl;
     var initializers = (pop() as List<ConstructorInitializerImpl>?) ?? const [];
     var colon = pop() as Token?;
+    var modifiers = pop() as _Modifiers;
     var metadata = pop() as List<AnnotationImpl>?;
     var comment = _findComment(metadata, beginToken);
 
@@ -2765,6 +2771,7 @@ class AstBuilder extends StackListener {
       PrimaryConstructorBodyImpl(
         comment: comment,
         metadata: metadata,
+        augmentKeyword: modifiers.augmentKeyword,
         thisKeyword: beginToken,
         colon: colon,
         initializers: initializers,

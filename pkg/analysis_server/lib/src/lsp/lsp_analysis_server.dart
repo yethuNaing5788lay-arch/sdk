@@ -386,7 +386,7 @@ class LspAnalysisServer extends AnalysisServer {
   FutureOr<void> handleAnalysisStatusChange(
     analysis.AnalysisStatus status,
   ) async {
-    super.handleAnalysisStatusChange(status);
+    await super.handleAnalysisStatusChange(status);
     await sendStatusNotification(status);
   }
 
@@ -869,10 +869,10 @@ class LspAnalysisServer extends AnalysisServer {
     }
 
     if (isAnalyzing) {
-      analyzingProgressReporter ??= ProgressReporter.serverCreated(
-        this,
-        analyzingProgressToken,
-      )..begin('Analyzing…');
+      analyzingProgressReporter ??=
+          ProgressReporter.serverCreated(this, analyzingProgressToken)
+            // ignore: unawaited_futures
+            ..begin('Analyzing…');
     } else {
       if (analyzingProgressReporter != null) {
         // Do not null this out until after end completes, otherwise we may try
@@ -1133,9 +1133,8 @@ class LspAnalysisServer extends AnalysisServer {
   /// Returns whether [filePath] is in a project that can resolve
   /// 'package:flutter' libraries.
   bool _isInFlutterProject(String filePath) =>
-      getAnalysisDriver(
-        filePath,
-      )?.currentSession.uriConverter.uriToPath(Uri.parse(widgetsUri)) !=
+      getAnalysisDriver(filePath)?.currentSession.uriConverter
+          .uriToPath(Uri.parse(widgetsUri)) !=
       null;
 
   void _notifyPluginsOverlayChanged(

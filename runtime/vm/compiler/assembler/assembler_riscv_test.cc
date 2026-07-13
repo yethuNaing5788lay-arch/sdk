@@ -22,7 +22,7 @@ namespace compiler {
 #define EXPECT_DISASSEMBLY(expected)
 #else
 #define EXPECT_DISASSEMBLY(expected)                                           \
-  EXPECT_STREQ(expected, test->RelativeDisassembly())
+  EXPECT_STREQ_NO_PREFIX_SUFFIX(expected, test->RelativeDisassembly())
 #endif
 
 // Called from assembler_test.cc.
@@ -1785,7 +1785,8 @@ ASSEMBLER_TEST_RUN(InstructionFence, test) {
   EXPECT_DISASSEMBLY(
       "0000100f fence.i\n"
       "00008067 ret\n");
-  Call(test->entry());
+
+  // Not running: may trap. This was removed from the user ISA.
 }
 
 ASSEMBLER_TEST_GENERATE(EnvironmentCall, assembler) {

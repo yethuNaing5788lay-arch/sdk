@@ -6,6 +6,7 @@
 # make sure to regenerate supporting classes by running:
 #
 #     dart run pkg/linter/tool/generate_lints.dart
+#     dart run pkg/analyzer/tool/messages/generate.dart
 
 # There is a fixed set of categories:
 #
@@ -134,8 +135,9 @@ LinterLintCode:
 
       ```dart
       void f(bool b) {
-        if (b)
+        if (b) {
           return;
+        }
       }
       ```
     deprecatedDetails: |-
@@ -270,7 +272,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -740,7 +742,7 @@ LinterLintCode:
     state:
       experimental: "3.2"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -754,11 +756,11 @@ LinterLintCode:
 
       ```dart
       class C {
-        void f() { }
+        void f() {}
       }
 
       extension type E(C c) implements C {
-        void [!f!]() { }
+        void [!f!]() {}
       }
       ```
 
@@ -770,12 +772,12 @@ LinterLintCode:
       import 'package:meta/meta.dart';
 
       class C {
-        void f() { }
+        void f() {}
       }
 
       extension type E(C c) implements C {
         @redeclare
-        void f() { }
+        void f() {}
       }
       ```
     deprecatedDetails: |-
@@ -821,7 +823,7 @@ LinterLintCode:
     state:
       stable: "3.13"
     categories: [errorProne]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -887,7 +889,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [brevity, style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -987,7 +989,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [brevity]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -1017,7 +1019,7 @@ LinterLintCode:
       If the then expression is a boolean literal, replace it with one of the following:
 
       ```dart
-      bool f(bool a, bool b) => a || b;  // replaces: a ? true : b
+      bool f(bool a, bool b) => a || b; // replaces: a ? true : b
       bool g(bool a, bool b) => !a && b; // replaces: a ? false : b
       ```
 
@@ -1025,7 +1027,7 @@ LinterLintCode:
 
       ```dart
       bool f(bool a, bool b) => !a || b; // replaces: a ? b : true
-      bool g(bool a, bool b) => a && b;  // replaces: a ? b : false
+      bool g(bool a, bool b) => a && b; // replaces: a ? b : false
       ```
     deprecatedDetails: |-
       **AVOID** `bool` literals in conditional expressions.
@@ -1054,7 +1056,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [effectiveDart, style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -1216,7 +1218,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [errorProne, web]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -1444,10 +1446,11 @@ LinterLintCode:
 
       ```dart
       void f(int x, int y) {
-        if (x > y)
-          print("1");
-        else [!;!]
-          print("2");
+        if (x > y) {
+          print('1');
+        } else
+          [!;!]
+        print('2');
       }
       ```
 
@@ -1458,10 +1461,11 @@ LinterLintCode:
 
       ```dart
       void f(int x, int y) {
-        if (x > y)
-          print("1");
-        else
-          print("2");
+        if (x > y) {
+          print('1');
+        } else {
+          print('2');
+        }
       }
       ```
 
@@ -1470,9 +1474,8 @@ LinterLintCode:
 
       ```dart
       void f(int x, int y) {
-        if (x > y)
-          print("1");
-        print("2");
+        if (x > y) print('1');
+        print('2');
       }
       ```
     deprecatedDetails: |-
@@ -1637,7 +1640,7 @@ LinterLintCode:
     state:
       stable: "2.16"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       NOTE: This rule is removed in Dart 3.13.0; it is no longer functional.
 
@@ -2070,7 +2073,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [errorProne, web]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -2199,7 +2202,7 @@ LinterLintCode:
       experimental: "2.0"
       stable: "2.2"
     categories: [effectiveDart, style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -2346,9 +2349,17 @@ LinterLintCode:
     correctionMessage: "Try inlining the type or using it in other places."
     state:
       stable: "2.0"
+      deprecated: "3.13"
     categories: [style]
     hasPublishedDocs: false
     deprecatedDetails: |-
+      **NOTE:** As a private typedef can make some code more readable,
+      this lint rule has been deprecated as of Dart 3.13 and is
+      set to be removed in a future release of the Dart SDK.
+      Remove all inclusions of this lint from your analysis options.
+      If you wish to keep enforcing it, consider implementing the
+      rule with an [analyzer plugin](https://dart.dev/tools/analyzer-plugins).
+
       **AVOID** private typedef functions used only once. Prefer inline function
       syntax.
 
@@ -2370,7 +2381,7 @@ LinterLintCode:
     state:
       stable: "2.8"
     categories: [brevity, style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -3208,7 +3219,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -3279,14 +3290,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget buildRow() {
-        return [!Container!](
-          child: Row(
-            children: [
-              Text('a'),
-              Text('b'),
-            ],
-          )
-        );
+        return [!Container!](child: Row(children: [Text('a'), Text('b')]));
       }
       ```
 
@@ -3301,12 +3305,7 @@ LinterLintCode:
       Widget buildRow() {
         return Container(
           color: Colors.red.shade100,
-          child: Row(
-            children: [
-              Text('a'),
-              Text('b'),
-            ],
-          )
+          child: Row(children: [Text('a'), Text('b')]),
         );
       }
       ```
@@ -3317,12 +3316,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget buildRow() {
-        return Row(
-          children: [
-            Text('a'),
-            Text('b'),
-          ],
-        );
+        return Row(children: [Text('a'), Text('b')]);
       }
       ```
     deprecatedDetails: |-
@@ -3380,7 +3374,7 @@ LinterLintCode:
     # TODO(srawlins): This isn't even just about unintentional syntax; unused
     # parameters can represent code bloat.
     categories: [unintentional]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -3410,7 +3404,7 @@ LinterLintCode:
       class C {
         int x;
 
-        C(int a, int b, [!int c!]): x = a + b {
+        C(int a, int b, [!int c!]) : x = a + b {
           print(x);
         }
       }
@@ -3435,7 +3429,7 @@ LinterLintCode:
       class C {
         int x;
 
-        C(int a, int b): x = a + b {
+        C(int a, int b) : x = a + b {
           print(x);
         }
       }
@@ -4045,7 +4039,7 @@ LinterLintCode:
       type of the list `l`:
 
       ```dart
-      bool f(List<int> l)  => l.contains([!'1'!]);
+      bool f(List<int> l) => l.contains([!'1'!]);
       ```
 
       #### Common fixes
@@ -4054,13 +4048,13 @@ LinterLintCode:
       type:
 
       ```dart
-      bool f(List<int> l)  => l.contains(1);
+      bool f(List<int> l) => l.contains(1);
       ```
 
       If the argument type is correct, then change the element type:
 
       ```dart
-      bool f(List<String> l)  => l.contains('1');
+      bool f(List<String> l) => l.contains('1');
       ```
     deprecatedDetails: |-
       **DON'T** invoke certain collection method with an argument with an unrelated
@@ -4845,7 +4839,7 @@ LinterLintCode:
       ```dart
       import 'package:flutter/material.dart';
 
-      class C extends Widget {
+      class const C({super.key}) extends Widget {
         bool get p1 => true;
 
         bool get [!p2!] => false;
@@ -4869,7 +4863,7 @@ LinterLintCode:
       ```dart
       import 'package:flutter/material.dart';
 
-      class C extends Widget {
+      class const C({super.key}) extends Widget {
         bool get p1 => true;
 
         bool get p2 => false;
@@ -5062,11 +5056,19 @@ LinterLintCode:
     problemMessage: "Place 'package:' #p0 before relative #p0."
     correctionMessage: "Try sorting the directives."
     hasPublishedDocs: false
+  discardedFutureOr:
+    type: lint
+    parameters: none
+    sharedName: discardedFutures
+    problemMessage: "'FutureOr'-returning calls in a non-'async' function."
+    correctionMessage: "Try converting the enclosing function to be 'async' and then 'await'."
+    hasPublishedDocs: false
   discardedFutures:
     type: lint
     parameters: none
+    sharedName: discardedFutures
     problemMessage: "'Future'-returning calls in a non-'async' function."
-    correctionMessage: "Try converting the enclosing function to be 'async' and then 'await' the future, or wrap the expression in 'unawaited'."
+    correctionMessage: "Try converting the enclosing function to be 'async' and then 'await', or wrap the expression in 'unawaited'."
     state:
       stable: "2.18"
     categories: [errorProne]
@@ -5312,9 +5314,41 @@ LinterLintCode:
     problemMessage: "Empty #containerKind bodies should be written using a ';' rather than '{}'."
     correctionMessage: "Try replacing the #containerKind body with ';'."
     state:
-      experimental: "3.13"
+      stable: "3.13"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
+    documentation: |-
+      #### Description
+
+      The analyzer produces this diagnostic when the block body of a class,
+      enum, extension, extension type, or mixin is empty and can be replaced by
+      a semicolon.
+
+      #### Example
+
+      The following code produces this diagnostic because the body of the class
+      `C` is empty:
+
+      ```dart
+      class C [!{}!]
+      ```
+
+      #### Common fixes
+
+      If the class needs to have members, then add them:
+
+      ```dart
+      class C {
+        @override
+        String toString() => 'c';
+      }
+      ```
+
+      Otherwise, replace the body with a semicolon:
+
+      ```dart
+      class C;
+      ```
     deprecatedDetails: |-
       Use `;` instead of `{}` for empty container (class, enum, etc.) bodies.
   emptyStatements:
@@ -5338,8 +5372,10 @@ LinterLintCode:
 
       ```dart
       void f(bool condition) {
-        while (condition)[!;!]
-          g();
+        while (condition) {
+          [!;!]
+        }
+        g();
       }
 
       void g() {}
@@ -5438,9 +5474,10 @@ LinterLintCode:
       b() {
       }
       ```
-  eolAtEndOfFile:
+  eolAtEndOfFileMissing:
     type: lint
     parameters: none
+    sharedName: eolAtEndOfFile
     problemMessage: "Missing a newline at the end of the file."
     correctionMessage: "Try adding a newline at the end of the file."
     state:
@@ -5462,6 +5499,13 @@ LinterLintCode:
       }
           <-- newline
       ```
+  eolAtEndOfFileTooMany:
+    type: lint
+    parameters: none
+    sharedName: eolAtEndOfFile
+    problemMessage: "Too many newlines at the end of the file."
+    correctionMessage: "Try removing the extra newlines at the end of the file."
+    hasPublishedDocs: false
   eraseDartTypeExtensionTypes:
     # TODO(nshahan): Update.
     type: lint
@@ -5627,6 +5671,51 @@ LinterLintCode:
       // TODO(username): message.
       // TODO(username): message, https://URL-to-issue.
       ```
+  futureSyncValue:
+    type: lint
+    parameters: none
+    problemMessage: "For synchronous values, `Future.syncValue` is more performant."
+    correctionMessage: "Try replacing `Future.value` with `Future.syncValue`."
+    state:
+      stable: "3.14"
+    categories: [nonPerformant]
+    hasPublishedDocs: false
+    documentation: |-
+      #### Description
+
+      The analyzer produces this diagnostic when the method `Future.value`
+      is called with a non-`Future` value. This includes the type `Object`,
+      but not `dynamic` or `FutureOr`.
+
+      The constructor internally checks whether the argument is a `Future`.
+      If the argument is already known not to be a `Future`, the check is
+      redundant and reduces performance.
+
+      #### Example
+
+      ```dart
+      Future<int> f() => Future.[!value!](1);
+      ```
+
+      #### Common fixes
+
+      Replace the call to `Future.value` with a call to `Future.syncValue`:
+
+      ```dart
+      Future<int> f() => Future.syncValue(1);
+      ```
+    deprecatedDetails: |-
+      **DO** use `Future.syncValue` when the argument is synchronous.
+
+      **BAD:**
+      ```dart
+      Future<int> f() => Future.value(1);
+      ```
+
+      **GOOD:**
+      ```dart
+      Future<int> f() => Future.value(1);
+      ```
   hashAndEquals:
     type: lint
     parameters:
@@ -5663,9 +5752,7 @@ LinterLintCode:
 
         @override
         bool operator [!==!](Object other) =>
-            other is C &&
-            other.runtimeType == runtimeType &&
-            other.value == value;
+            other is C && other.runtimeType == runtimeType && other.value == value;
       }
       ```
 
@@ -5682,9 +5769,7 @@ LinterLintCode:
 
         @override
         bool operator ==(Object other) =>
-            other is C &&
-            other.runtimeType == runtimeType &&
-            other.value == value;
+            other is C && other.runtimeType == runtimeType && other.value == value;
 
         @override
         int get hashCode => value.hashCode;
@@ -5937,9 +6022,39 @@ LinterLintCode:
     problemMessage: "Field should be initialized in the field declaration."
     correctionMessage: "Try initializing the field where it's declared."
     state:
-      experimental: "3.13"
+      stable: "3.13"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
+    documentation: |-
+      #### Description
+
+      The analyzer produces this diagnostic when a field initialized in either
+      the initializer list or body of a primary constructor can be initialized
+      in the field declaration.
+
+      #### Example
+
+      The following code produces this diagnostic because the field `y` is
+      initialized in the primary constructor's initializer list, when it can be
+      initialized in the field declaration:
+
+      ```dart
+      class C(int x) {
+        this : [!y!] = x;
+
+        int y;
+      }
+      ```
+
+      #### Common fixes
+
+      Initialize the field in its declaration:
+
+      ```dart
+      class C(int x) {
+        int y = x;
+      }
+      ```
     deprecatedDetails: |-
       Initialize fields where they're declared when possible.
   invalidCasePatterns:
@@ -6742,7 +6857,6 @@ LinterLintCode:
 
       ```dart
       [!@TestOn('browser')!]
-
       import 'package:test/test.dart';
 
       void main() {}
@@ -7320,6 +7434,18 @@ LinterLintCode:
         );
       }
       ```
+  migrateDesignWidgets:
+    type: lint
+    parameters:
+      String libraryName: the name of the deprecated library
+    problemMessage: "The '#libraryName' library is deprecated."
+    correctionMessage: "Try using the Material or Cupertino package."
+    state:
+      testing: "3.13"
+    categories: [flutter]
+    hasPublishedDocs: false
+    deprecatedDetails: |-
+      The 'package:flutter/material.dart' and 'package:flutter/cupertino.dart' libraries are deprecated.
   missingCodeBlockLanguageInDocComment:
     type: lint
     parameters: none
@@ -7380,8 +7506,8 @@ LinterLintCode:
 
       ```dart
       var s =
-        [!'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed'!]
-        'do eiusmod tempor incididunt ut labore et dolore magna';
+          [!'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed'!]
+          'do eiusmod tempor incididunt ut labore et dolore magna';
       ```
 
       #### Common fixes
@@ -7391,8 +7517,8 @@ LinterLintCode:
 
       ```dart
       var s =
-        'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed '
-        'do eiusmod tempor incididunt ut labore et dolore magna';
+          'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed '
+          'do eiusmod tempor incididunt ut labore et dolore magna';
       ```
     deprecatedDetails: |-
       Add a trailing whitespace to prevent missing whitespace between adjacent
@@ -7437,7 +7563,11 @@ LinterLintCode:
       `'b'` are adjacent:
 
       ```dart
-      List<String> list = [[!'a' 'b'!], 'c'];
+      List<String> list = [
+        [!'a'
+            'b'!],
+        'c',
+      ];
       ```
 
       #### Common fixes
@@ -7619,6 +7749,35 @@ LinterLintCode:
       NOTE: this lint only reports duplicate cases in libraries opted in to Dart 2.19
       and below. In Dart 3.0 and after, duplicate cases are reported as dead code
       by the analyzer.
+  noDynamicCasts:
+    type: lint
+    parameters: none
+    problemMessage: "Implicit cast from 'dynamic'."
+    correctionMessage: "Try adding an explicit cast or changing the target type."
+    state:
+      stable: "3.13"
+    categories: [errorProne]
+    hasPublishedDocs: false
+    deprecatedDetails: |-
+      **DO** avoid implicit casts from `dynamic`.
+
+      Assigning a `dynamic`-typed expression to a non-`dynamic`, non-`Object?`
+      target is a form of implicit casting. It is better to make such a cast
+      explicit, so that it is visible to developers.
+
+      **BAD:**
+      ```dart
+      void f(dynamic x) {
+        int y = x;
+      }
+      ```
+
+      **GOOD:**
+      ```dart
+      void f(dynamic x) {
+        int y = x as int;
+      }
+      ```
   noLeadingUnderscoresForLibraryPrefixes:
     type: lint
     parameters:
@@ -7798,7 +7957,7 @@ LinterLintCode:
       ```dart
       import 'package:flutter/material.dart';
 
-      class MyWidget extends StatefulWidget {
+      class const MyWidget({super.key}) extends StatefulWidget {
         @override
         MyState createState() => [!MyState(0)!];
       }
@@ -7808,6 +7967,7 @@ LinterLintCode:
 
         MyState(this.x);
 
+        @override
         Widget build(BuildContext context) => MyWidget();
       }
       ```
@@ -7819,7 +7979,7 @@ LinterLintCode:
       ```dart
       import 'package:flutter/material.dart';
 
-      class MyWidget extends StatefulWidget {
+      class const MyWidget({super.key}) extends StatefulWidget {
         @override
         MyState createState() => MyState();
       }
@@ -7829,6 +7989,7 @@ LinterLintCode:
 
         MyState();
 
+        @override
         Widget build(BuildContext context) => MyWidget();
       }
       ```
@@ -7877,6 +8038,59 @@ LinterLintCode:
           return MyState();
         }
       }
+      ```
+  noRawTypes:
+    type: lint
+    parameters:
+      Type type: the name of the generic type
+    problemMessage: "The generic type '#type' should have explicit type arguments but doesn't."
+    correctionMessage: "Use explicit type arguments for '#type'."
+    state:
+      stable: "3.13"
+    categories: [errorProne]
+    hasPublishedDocs: true
+    documentation: |-
+      #### Description
+
+      The analyzer produces this diagnostic when a generic type is used without
+      explicit type arguments, meaning it is a raw type.
+
+      #### Example
+
+      The following code produces this diagnostic because the generic class `C`
+      is used without a type argument:
+
+      ```dart
+      class C<T> {}
+
+      [!C!] c = C<int>();
+      ```
+
+      #### Common fixes
+
+      Provide explicit type arguments:
+
+      ```dart
+      class C<T> {}
+
+      C<int> c = C<int>();
+      ```
+    deprecatedDetails: |-
+      **DON'T** use raw types.
+
+      A raw type is a type annotation for a generic type which omits type
+      arguments. Developers may mistakenly believe that the type arguments are
+      inferred, but in fact each type parameter's bound is used, which can lead
+      to lost type information.
+
+      **BAD:**
+      ```dart
+      List list = [1, 2, 3];
+      ```
+
+      **GOOD:**
+      ```dart
+      List<int> list = [1, 2, 3];
       ```
   noRuntimetypeTostring:
     type: lint
@@ -8035,7 +8249,7 @@ LinterLintCode:
     type: lint
     parameters: none
     problemMessage: "Don't create string literals with trailing spaces in tests."
-    correctionMessage: 'Try removing the trailing spaces.'
+    correctionMessage: "Try removing the trailing spaces."
     hasPublishedDocs: true
     state:
       internal: "3.10"
@@ -8563,9 +8777,17 @@ LinterLintCode:
     correctionMessage: "Try making '#p0' a top-level function and removing the class."
     state:
       stable: "2.0"
+      deprecated: "3.13"
     categories: [effectiveDart, languageFeatureUsage, style]
     hasPublishedDocs: false
     deprecatedDetails: |-
+      **NOTE:** As one member abstracts are often a stepping stone,
+      this lint rule has been deprecated as of Dart 3.13 and is
+      set to be removed in a future release of the Dart SDK.
+      Remove all inclusions of this lint from your analysis options.
+      If you wish to keep enforcing it, consider implementing the
+      rule with an [analyzer plugin](https://dart.dev/tools/analyzer-plugins).
+
       From [Effective Dart](https://dart.dev/effective-dart/design#avoid-defining-a-one-member-abstract-class-when-a-simple-function-will-do):
 
       **AVOID** defining a one-member abstract class when a simple function will do.
@@ -8956,7 +9178,7 @@ LinterLintCode:
     state:
       stable: "2.0"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -9104,7 +9326,9 @@ LinterLintCode:
       Remove the operator:
 
       ```dart
-      var s = 'a' 'b';
+      var s =
+          'a'
+          'b';
       ```
     deprecatedDetails: |-
       **DO** use adjacent strings to concatenate string literals.
@@ -9518,7 +9742,7 @@ LinterLintCode:
 
       @immutable
       class C {
-        final f;
+        final int f;
 
         [!C!](this.f);
       }
@@ -9534,7 +9758,7 @@ LinterLintCode:
 
       @immutable
       class C {
-        final f;
+        final int f;
 
         const C(this.f);
       }
@@ -9544,7 +9768,7 @@ LinterLintCode:
 
       ```dart
       class C {
-        final f;
+        final int f;
 
         C(this.f);
       }
@@ -9676,7 +9900,7 @@ LinterLintCode:
 
       @immutable
       class C {
-        final f;
+        final List<int> f;
 
         const C(this.f);
       }
@@ -9693,7 +9917,7 @@ LinterLintCode:
 
       @immutable
       class C {
-        final f;
+        final List<int> f;
 
         const C(this.f);
       }
@@ -9710,7 +9934,7 @@ LinterLintCode:
 
       @immutable
       class C {
-        final f;
+        final List<int> f;
 
         const C(this.f);
       }
@@ -9727,7 +9951,7 @@ LinterLintCode:
 
       @immutable
       class C {
-        final f;
+        final List<int> f;
 
         const C(this.f);
       }
@@ -10446,10 +10670,7 @@ LinterLintCode:
 
       ```dart
       void f(Iterable<String> data) {
-        <String, int>{
-          for (var element in data)
-            element: element.length
-        };
+        <String, int>{for (var element in data) element: element.length};
       }
       ```
     deprecatedDetails: |-
@@ -10462,7 +10683,6 @@ LinterLintCode:
       - Readability
       - Improved type inference
       - Improved interaction with null safety
-
 
       **BAD:**
       ```dart
@@ -10766,7 +10986,7 @@ LinterLintCode:
       class C {
         int c;
 
-        C(int c) : [!this.c = c!];
+        C(int c) : [!c = c!];
       }
       ```
 
@@ -10942,7 +11162,7 @@ LinterLintCode:
     state:
       stable: "2.1"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -11735,7 +11955,7 @@ LinterLintCode:
     type: lint
     parameters: none
     problemMessage: "Missing a deprecation message."
-    correctionMessage: "Try using the constructor to provide a message ('@Deprecated(\"message\")')."
+    correctionMessage: 'Try using the constructor to provide a message (''@Deprecated("message")'').'
     state:
       stable: "2.2"
     categories: [publicInterface]
@@ -11956,7 +12176,7 @@ LinterLintCode:
       annotated with `@deprecated`:
 
       ```dart
-      @[!deprecated!]
+      @[!Deprecated!]('...')
       void f() {}
 
       void g() {}
@@ -12115,7 +12335,7 @@ LinterLintCode:
     state:
       stable: "3.12"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -12258,13 +12478,8 @@ LinterLintCode:
         return Row(
           children: <Widget>[
             const Text('...'),
-            [!Container!](
-              width: 4,
-              child: Text('...'),
-            ),
-            const Expanded(
-              child: Text('...'),
-            ),
+            [!Container!](width: 4, child: Text('...')),
+            const Expanded(child: Text('...')),
           ],
         );
       }
@@ -12281,13 +12496,8 @@ LinterLintCode:
         return Row(
           children: <Widget>[
             Text('...'),
-            SizedBox(
-              width: 4,
-              child: Text('...'),
-            ),
-            Expanded(
-              child: Text('...'),
-            ),
+            SizedBox(width: 4, child: Text('...')),
+            Expanded(child: Text('...')),
           ],
         );
       }
@@ -12353,11 +12563,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget build() {
-        return [!SizedBox!](
-          height: 0.0,
-          width: 0.0,
-          child: const Text(''),
-        );
+        return [!SizedBox!](height: 0.0, width: 0.0, child: const Text(''));
       }
       ```
 
@@ -12384,9 +12590,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget build() {
-        return SizedBox.shrink(
-          child: const Text(''),
-        );
+        return SizedBox.shrink(child: const Text(''));
       }
       ```
 
@@ -12396,9 +12600,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget build() {
-        return SizedBox.expand(
-          child: const Text(''),
-        );
+        return SizedBox.expand(child: const Text(''));
       }
       ```
     deprecatedDetails: |-
@@ -12531,10 +12733,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget createWidget() {
-        return Center(
-          [!child: Text('...')!],
-          widthFactor: 0.5,
-        );
+        return Center([!child: Text('...')!], widthFactor: 0.5);
       }
       ```
 
@@ -12546,10 +12745,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget createWidget() {
-        return Center(
-          widthFactor: 0.5,
-          child: Text('...'),
-        );
+        return Center(widthFactor: 0.5, child: Text('...'));
       }
       ```
     deprecatedDetails: |-
@@ -13611,11 +13807,19 @@ LinterLintCode:
         }
       }
       ```
+  unawaitedFutureOr:
+    type: lint
+    parameters: none
+    sharedName: unawaitedFutures
+    problemMessage: "Missing an 'await' for the 'FutureOr' computed by this expression."
+    correctionMessage: "Try adding an 'await'."
+    hasPublishedDocs: true
   unawaitedFutures:
     type: lint
     parameters: none
+    sharedName: unawaitedFutures
     problemMessage: "Missing an 'await' for the 'Future' computed by this expression."
-    correctionMessage: "Try adding an 'await' or wrapping the expression with 'unawaited'."
+    correctionMessage: "Try adding an 'await' or wrapping the expression with 'unawaited' (if it is a 'Future')."
     state:
       stable: "2.0"
     categories: [style]
@@ -13624,7 +13828,7 @@ LinterLintCode:
       #### Description
 
       The analyzer produces this diagnostic on an expression with a `Future`
-      type, only in a few specific cases:
+      or `FutureOr` type, only in a few specific cases:
 
       * when the expression is itself a statement (like `f();`),
       * when the expression is part of a cascade (like `C()..f()`),
@@ -13633,8 +13837,9 @@ LinterLintCode:
       The analyzer only produces this diagnostic on expressions inside an
       `async` or `async*` function.
 
-      The two common corrections are to 'await' the expression, or to wrap the
-      expression in a call to `unawaited()`.
+      The two common corrections are to 'await' the expression, or if it is
+      a `Future` (not `FutureOr`), to wrap the expression in a call to
+      `unawaited()`.
 
       #### Example
 
@@ -13662,7 +13867,7 @@ LinterLintCode:
       Future<int> g() => Future.value(0);
       ```
 
-      If the future doesn't need to complete before the following code is
+      If the `Future` doesn't need to complete before the following code is
       executed, then wrap the `Future`-returning invocation in an invocation of
       the `unawaited` function:
 
@@ -13676,10 +13881,11 @@ LinterLintCode:
       Future<int> g() => Future.value(0);
       ```
     deprecatedDetails: |-
-      **DO** await functions that return a `Future` inside of an async function body.
+      **DO** await functions that return a `Future` or `FutureOr` inside of an async
+      function body.
 
-      It's easy to forget await in async methods as naming conventions usually don't
-      tell us if a method is sync or async (except for some in `dart:io`).
+      It's easy to forget `await` in `async` methods as naming conventions usually don't
+      tell us if a method is sync or `async` (except for some in `dart:io`).
 
       When you really _do_ want to start a fire-and-forget `Future`, the recommended
       way is to use `unawaited` from `dart:async`. The `// ignore` and
@@ -13687,6 +13893,8 @@ LinterLintCode:
 
       **BAD:**
       ```dart
+      Future doSomething() => ...;
+
       void main() async {
         doSomething(); // Likely a bug.
       }
@@ -13700,6 +13908,9 @@ LinterLintCode:
         await doSomething();
 
         unawaited(doSomething()); // Explicitly-ignored fire-and-forget.
+
+        // ignore: unawaited_futures
+        doSomething(); // Explicitly-ignored fire-and-forget.
       }
       ```
   unintendedHtmlInDocComment:
@@ -13830,7 +14041,7 @@ LinterLintCode:
     state:
       experimental: "3.7"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -13888,9 +14099,52 @@ LinterLintCode:
     correctionMessage: "Try removing the 'await'."
     state:
       stable: "2.1"
+      deprecated: "3.13"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
+    documentation: |-
+      #### Description
+
+      The analyzer produces this diagnostic when an `async` function or method
+      returns an `await` expression and the static type of the
+      awaited `Future` is a [subtype][] of the declared return type.
+
+      The `await` is unnecessary because returning a `Future` from an
+      `async` function already produces a `Future` that
+      completes with the same result.
+
+      The analyzer doesn't report this diagnostic for `await` expressions
+      inside a `try` block because removing the `await` changes how
+      errors from the awaited `Future` are handled.
+
+      [subtype]: https://dart.dev/resources/glossary#subtype
+
+      #### Example
+
+      The following code produces this diagnostic because the function `f`
+      has a return type of `Future<int>` and returns an awaited `Future`
+      whose static type is also `Future<int>`:
+
+      ```dart
+      Future<int> f(Future<int> future) async {
+        return [!await!] future;
+      }
+      ```
+
+      #### Common fixes
+
+      Remove the unnecessary `await`:
+
+      ```dart
+      Future<int> f(Future<int> future) async {
+        return future;
+      }
+      ```
     deprecatedDetails: |-
+      **NOTE:** As following this lint rule everywhere (specially when not reported) can
+      lead to unexpected errors, this lint has been deprecated.
+      Remove all inclusions of this lint from your analysis options.
+
       Avoid returning an awaited expression when the expression type is assignable to
       the function's return type.
 
@@ -13971,7 +14225,7 @@ LinterLintCode:
     state:
       stable: "3.0"
     categories: [brevity, style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -14119,9 +14373,9 @@ LinterLintCode:
     problemMessage: "Unnecessary 'const' keyword in an enum constructor."
     correctionMessage: "Try removing the keyword."
     state:
-      experimental: "3.13"
+      stable: "3.13"
     categories: [brevity, style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -14137,17 +14391,19 @@ LinterLintCode:
       ```dart
       %experiments=primary-constructors
       enum [!const!] E(final int i) {
-        a(1), b(2);
+        a(1),
+        b(2);
       }
       ```
 
       The following code produces this diagnostic because the keyword `const` in
-      the enum's secondary constructor isn't needed:
+      the enum's in-body constructor isn't needed:
 
       ```dart
       %experiments=primary-constructors
       enum E {
-        a(1), b(2);
+        a(1),
+        b(2);
 
         [!const!] E(this.i);
 
@@ -14162,16 +14418,18 @@ LinterLintCode:
       ```dart
       %experiments=primary-constructors
       enum E(final int i) {
-        a(1), b(2);
+        a(1),
+        b(2);
       }
       ```
 
       ```dart
       %experiments=primary-constructors
       enum E {
-        a(1), b(2);
+        a(1),
+        b(2);
 
-        E(this.i);
+        new(this.i);
 
         final int i;
       }
@@ -14617,7 +14875,7 @@ LinterLintCode:
     state:
       stable: "2.19"
     categories: [brevity]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
@@ -14856,8 +15114,7 @@ LinterLintCode:
       remove the assignment:
 
       ```dart
-      void f(String? s) {
-      }
+      void f(String? s) {}
       ```
     deprecatedDetails: |-
       **AVOID** `null` in `null`-aware assignment.
@@ -15262,6 +15519,54 @@ LinterLintCode:
       * logical expressions - parentheses can improve the readability of the implicit
         grouping defined by precedence. For example, the expression
         `(a && b) || c && d`.
+  unnecessaryPrimaryConstructorBody:
+    type: lint
+    parameters: none
+    problemMessage: "Unnecessary primary constructor body."
+    correctionMessage: "Try removing the body."
+    state:
+      stable: "3.13"
+    categories: [brevity, style]
+    hasPublishedDocs: true
+    documentation: |-
+      #### Description
+
+      The analyzer produces this diagnostic when a primary constructor body has
+      no initializers, body, annotations, or documentation comment. Without
+      these, the body is unnecessary.
+
+      #### Example
+
+      The following code produces this diagnostic because the primary
+      constructor body is unnecessary:
+
+      ```dart
+      class C(final int i) {
+        [!this!];
+      }
+      ```
+
+      #### Common fixes
+
+      Remove the primary constructor body:
+
+      ```dart
+      class C(final int i);
+      ```
+    deprecatedDetails: |-
+      Don't include an empty primary constructor body.
+
+      **BAD:**
+      ```dart
+      class C() {
+        this;
+      }
+      ```
+
+      **GOOD:**
+      ```dart
+      class C();
+      ```
   unnecessaryRawStrings:
     type: lint
     parameters: none
@@ -15339,8 +15644,7 @@ LinterLintCode:
       If the expression doesn't need to be computed, then remove it:
 
       ```dart
-      void f(int Function() first, int Function() second) {
-      }
+      void f(int Function() first, int Function() second) {}
       ```
 
       If the value of the expression is needed, then make use of it, possibly
@@ -15506,7 +15810,7 @@ LinterLintCode:
 
       ```dart
       class C {
-        int _f = 2;
+        final int _f = 2;
 
         int get f => [!this!]._f;
       }
@@ -15518,7 +15822,7 @@ LinterLintCode:
 
       ```dart
       class C {
-        int _f = 2;
+        final int _f = 2;
 
         int get f => _f;
       }
@@ -15582,9 +15886,7 @@ LinterLintCode:
 
       ```dart
       List<String> toLowercase(List<String> strings) {
-        return [
-          ...strings.map((String s) => s.toLowerCase()).[!toList!](),
-        ];
+        return [...strings.map((String s) => s.toLowerCase()).[!toList!]()];
       }
       ```
 
@@ -15594,9 +15896,7 @@ LinterLintCode:
 
       ```dart
       List<String> toLowercase(List<String> strings) {
-        return [
-          ...strings.map((String s) => s.toLowerCase()),
-        ];
+        return [...strings.map((String s) => s.toLowerCase())];
       }
       ```
     deprecatedDetails: |-
@@ -15623,11 +15923,11 @@ LinterLintCode:
     state:
       stable: "3.13"
     categories: [brevity, style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       #### Description
 
-      The analyzer produces this diagnostic when a secondary constructor
+      The analyzer produces this diagnostic when an in-body constructor
       declaration includes a type name.
 
       #### Examples
@@ -15650,7 +15950,7 @@ LinterLintCode:
       class C {
         factory [!C!]() => C._();
 
-        new _() {}
+        new _();
       }
       ```
 
@@ -15662,7 +15962,7 @@ LinterLintCode:
       ```dart
       %experiments=primary-constructors
       class C {
-        new ();
+        new();
       }
       ```
 
@@ -15671,9 +15971,9 @@ LinterLintCode:
       ```dart
       %experiments=primary-constructors
       class C {
-        factory () => C._();
+        factory() => C._();
 
-        new _() {}
+        new _();
       }
       ```
     deprecatedDetails: |-
@@ -15720,6 +16020,7 @@ LinterLintCode:
 
       ```dart
       import 'dart:async';
+
       import 'package:meta/meta.dart';
 
       @awaitNotRequired
@@ -15789,7 +16090,7 @@ LinterLintCode:
       The following code produces this diagnostic because the `__` parameter is unused:
 
       ```dart
-      void function(int [!__!]) { }
+      void function(int [!__!]) {}
       ```
 
       #### Common fixes
@@ -15797,22 +16098,20 @@ LinterLintCode:
       Replace the name with a single underscore:
 
       ```dart
-      void function(int _) { }
+      void function(int _) {}
       ```
     deprecatedDetails: |-
       **AVOID** using multiple underscores when a single wildcard will do.
 
       **BAD:**
       ```dart
-      void function(int __) { }
+      void function(int __) {}
       ```
 
       **GOOD:**
       ```dart
-      void function(int _) { }
+      void function(int _) {}
       ```
-
-
   unreachableFromMain:
     type: lint
     parameters:
@@ -16102,7 +16401,7 @@ LinterLintCode:
 
       ```dart
       class C<X> {
-        bool Function([!X!]) f;
+        final bool Function([!X!]) f;
         C(this.f);
       }
       ```
@@ -16122,7 +16421,7 @@ LinterLintCode:
       class C<X> {
         // NB: Ensure manually that `_f` is only accessed on `this`.
         // ignore: unsafe_variance
-        bool Function(X) _f;
+        final bool Function(X) _f;
 
         C(this._f);
 
@@ -16137,7 +16436,7 @@ LinterLintCode:
 
       ```dart
       class C<X> {
-        bool Function(Never) f;
+        final bool Function(Never) f;
         C(this.f);
       }
       ```
@@ -16152,7 +16451,7 @@ LinterLintCode:
 
       ```dart
       class C<X> {
-        Function f;
+        final Function f;
         C(this.f);
       }
       ```
@@ -16291,7 +16590,7 @@ LinterLintCode:
       ```dart
       import 'package:flutter/material.dart';
 
-      class MyWidget extends Widget {
+      class const MyWidget({super.key}) extends Widget {
         void onButtonTapped(BuildContext context) async {
           await Future.delayed(const Duration(seconds: 1));
           Navigator.of([!context!]).pop();
@@ -16306,7 +16605,7 @@ LinterLintCode:
       ```dart
       import 'package:flutter/material.dart';
 
-      class MyWidget extends Widget {
+      class const MyWidget({super.key}) extends Widget {
         void onButtonTapped(BuildContext context) {
           Navigator.of(context).pop();
         }
@@ -16319,7 +16618,7 @@ LinterLintCode:
       ```dart
       import 'package:flutter/material.dart';
 
-      class MyWidget extends Widget {
+      class const MyWidget({super.key}) extends Widget {
         void onButtonTapped(BuildContext context) async {
           await Future.delayed(const Duration(seconds: 1));
           if (context.mounted) {
@@ -16409,10 +16708,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget build() {
-        return [!Container!](
-          color: Colors.red,
-          child: const Text('hello'),
-        );
+        return [!Container!](color: Colors.red, child: const Text('hello'));
       }
       ```
 
@@ -16424,10 +16720,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       Widget build() {
-        return ColoredBox(
-          color: Colors.red,
-          child: const Text('hello'),
-        );
+        return ColoredBox(color: Colors.red, child: const Text('hello'));
       }
       ```
     deprecatedDetails: |-
@@ -16461,9 +16754,36 @@ LinterLintCode:
     problemMessage: "Use a declaring parameter."
     correctionMessage: "Try using a declaring parameter."
     state:
-      experimental: "3.13"
+      stable: "3.13"
     categories: [style]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
+    documentation: |-
+      #### Description
+
+      The analyzer produces this diagnostic when a primary constructor has a
+      parameter whose name matches a field of the same type in the class, and
+      the constructor assigns the value to the field without modifying it.
+
+      #### Example
+
+      The following code produces this diagnostic because the constructor
+      assigns the parameter `i` to the field `i`:
+
+      ```dart
+      class C(int [!i!]) {
+        final int i;
+
+        this : i = i;
+      }
+      ```
+
+      #### Common fixes
+
+      Convert the parameter to a declaring parameter:
+
+      ```dart
+      class C(final int i);
+      ```
     deprecatedDetails: |-
       Use a declaring parameter everywhere it's valid to do so.
   useDecoratedBox:
@@ -16493,9 +16813,7 @@ LinterLintCode:
         return [!Container!](
           decoration: const BoxDecoration(
             color: Colors.red,
-            borderRadius: BorderRadius.all(
-              Radius.circular(5),
-            ),
+            borderRadius: BorderRadius.all(Radius.circular(5)),
           ),
           child: const Text('...'),
         );
@@ -16513,9 +16831,7 @@ LinterLintCode:
         return DecoratedBox(
           decoration: const BoxDecoration(
             color: Colors.red,
-            borderRadius: BorderRadius.all(
-              Radius.circular(5),
-            ),
+            borderRadius: BorderRadius.all(Radius.circular(5)),
           ),
           child: const Text('...'),
         );
@@ -16814,7 +17130,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       class MyWidget extends StatelessWidget {
-        [!MyWidget!]({required int height});
+        const [!MyWidget!]({required int height});
       }
       ```
 
@@ -16836,7 +17152,7 @@ LinterLintCode:
       import 'package:flutter/material.dart';
 
       class MyWidget extends StatelessWidget {
-        MyWidget({super.key, required int height});
+        const MyWidget({super.key, required int height});
       }
       ```
     deprecatedDetails: |-
@@ -16854,7 +17170,7 @@ LinterLintCode:
       **GOOD:**
       ```dart
       class MyPublicWidget extends StatelessWidget {
-        MyPublicWidget({super.key});
+        const MyPublicWidget({super.key});
       }
       ```
   useLateForPrivateFieldsAndVariables:
@@ -16996,7 +17312,7 @@ LinterLintCode:
       null-aware marker '?' would be less brittle and less verbose.
 
       ```dart
-      f(int? x) => [[!if!] (x != null) x];
+      void f(int? x) => [[!if!] (x != null) x];
       ```
 
       #### Common fixes
@@ -17004,7 +17320,7 @@ LinterLintCode:
       Replace the null-check with the null-aware marker '?':
 
       ```dart
-      f(int? x) => [?x];
+      void f(int? x) => [?x];
       ```
     deprecatedDetails: |-
       Where possible, use null-aware elements in collection literals.
@@ -17024,7 +17340,7 @@ LinterLintCode:
     problemMessage: "Use a primary constructor."
     correctionMessage: "Try using a primary constructor."
     state:
-      experimental: "3.13"
+      testing: "3.13"
     categories: [style]
     hasPublishedDocs: false
     deprecatedDetails: |-
@@ -17355,6 +17671,7 @@ LinterLintCode:
       class A {
         A({int? x, int? y});
       }
+
       class B extends A {
         [!B!]({int? x, int? y}) : super(x: x, y: y);
       }
@@ -17368,6 +17685,7 @@ LinterLintCode:
       class A {
         A({int? x, int? y});
       }
+
       class B extends A {
         B({super.x, super.y});
       }
@@ -17608,7 +17926,7 @@ LinterLintCode:
     state:
       experimental: "3.12"
     categories: [languageFeatureUsage]
-    hasPublishedDocs: false
+    hasPublishedDocs: true
     documentation: |-
       NOTE: This rule is removed in Dart 3.13.0; it is no longer functional.
 
@@ -17746,7 +18064,7 @@ LinterLintCode:
 
       ```dart
       class A<T> {
-        void m(T p) { }
+        void m(T p) {}
       }
 
       void f(A<void> a) {

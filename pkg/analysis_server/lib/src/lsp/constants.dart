@@ -55,7 +55,7 @@ const dartTypeFormattingCharacters = ['}', ';'];
 final analysisOptionsFile = TextDocumentFilterScheme(
   language: 'yaml',
   scheme: 'file',
-  pattern: '**/analysis_options.yaml',
+  pattern: .t1('**/analysis_options.yaml'),
 );
 
 /// A [ProgressToken] used for reporting progress while the server is analyzing.
@@ -86,14 +86,14 @@ final fileOperationRegistrationOptions = FileOperationRegistrationOptions(
 final fixDataFile = TextDocumentFilterScheme(
   language: 'yaml',
   scheme: 'file',
-  pattern: '**/lib/{fix_data.yaml,fix_data/**.yaml}',
+  pattern: .t1('**/lib/{fix_data.yaml,fix_data/**.yaml}'),
 );
 
 /// A [TextDocumentFilterScheme] for Pubspec files.
 final pubspecFile = TextDocumentFilterScheme(
   language: 'yaml',
   scheme: 'file',
-  pattern: '**/pubspec.yaml',
+  pattern: .t1('**/pubspec.yaml'),
 );
 
 /// IDs of client-provided commands that the server knows about.
@@ -259,6 +259,10 @@ abstract final class CustomSemanticTokenModifiers {
   /// declarations to distinguish them from top-levels.
   static const instance = SemanticTokenModifiers('instance');
 
+  /// A modifier applied to plain source code, such as that surrounded by
+  /// triple backticks in comments.
+  static const source = SemanticTokenModifiers('source');
+
   /// A modifier applied to the void keyword to allow users to color it
   /// differently (for example as a type).
   static const void_ = SemanticTokenModifiers('void');
@@ -277,6 +281,7 @@ abstract final class CustomSemanticTokenModifiers {
     constructor,
     escape,
     interpolation,
+    source,
     void_,
     wildcard,
   ];

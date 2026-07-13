@@ -9,6 +9,7 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/file_system/file_system.dart';
 import 'package:analyzer/source/file_source.dart';
 import 'package:analyzer/source/source.dart';
+import 'package:analyzer/src/dart/analysis/analyzer_diagnostic_expectations.dart';
 import 'package:analyzer/src/dart/ast/ast.dart';
 import 'package:analyzer/src/dart/ast/extensions.dart';
 import 'package:analyzer/src/dart/element/element.dart';
@@ -248,21 +249,21 @@ class _IndexAssembler {
   final Map<Element, _ElementInfo> elementMap = {};
 
   /// Map associating [LibraryFragmentImpl]s with their identifiers,
-  /// which are indices into [unitLibraryUris] and [unitUnitUris].
+  /// which are indices into [unitLibraryPaths] and [unitUnitPaths].
   final Map<LibraryFragmentImpl, int> unitMap = {};
 
-  /// The fields [unitLibraryUris] and [unitUnitUris] are used together to
+  /// The fields [unitLibraryPaths] and [unitUnitPaths] are used together to
   /// describe each unique [LibraryFragmentImpl].
   ///
   /// This field contains the path of the library file for a unit.
-  final List<_StringInfo> unitLibraryUris = [];
+  final List<_StringInfo> unitLibraryPaths = [];
 
-  /// The fields [unitLibraryUris] and [unitUnitUris] are used together to
+  /// The fields [unitLibraryPaths] and [unitUnitPaths] are used together to
   /// describe each unique [LibraryFragmentImpl].
   ///
   /// This field contains the path of a unit, which might be the same as the
   /// library path for the defining unit, or a different one for a part.
-  final List<_StringInfo> unitUnitUris = [];
+  final List<_StringInfo> unitUnitPaths = [];
 
   /// Map associating strings with their [_StringInfo]s.
   final Map<String, _StringInfo> stringMap = {};
@@ -356,7 +357,7 @@ class _IndexAssembler {
 
   /// Index the [unit] and assemble a new [AnalysisDriverUnitIndexBuilder].
   AnalysisDriverUnitIndexBuilder assemble(CompilationUnit unit) {
-    unit.accept(_IndexContributor(this, unit));
+    unit.accept2(_IndexContributor(this, unit));
 
     // Sort strings and set IDs.
     List<_StringInfo> stringInfoList = stringMap.values.toList(growable: false);
@@ -406,8 +407,10 @@ class _IndexAssembler {
     return AnalysisDriverUnitIndexBuilder(
       strings: stringInfoList.map((s) => s.value).toList(growable: false),
       nullStringId: nullString.id,
-      unitLibraryUris: unitLibraryUris.map((s) => s.id).toList(growable: false),
-      unitUnitUris: unitUnitUris.map((s) => s.id).toList(growable: false),
+      unitLibraryPaths: unitLibraryPaths
+          .map((s) => s.id)
+          .toList(growable: false),
+      unitUnitPaths: unitUnitPaths.map((s) => s.id).toList(growable: false),
       elementImportPrefixes: elementInfoList
           .map((e) => e.importPrefixes.toList(growable: false).join(','))
           .toList(growable: false),
@@ -504,17 +507,17 @@ class _IndexAssembler {
     });
   }
 
-  /// Add information about [libraryFragment] to [unitUnitUris] and
-  /// [unitLibraryUris] if necessary, and return the location in those
+  /// Add information about [libraryFragment] to [unitUnitPaths] and
+  /// [unitLibraryPaths] if necessary, and return the location in those
   /// arrays representing [libraryFragment].
   int _getUnitId(LibraryFragmentImpl libraryFragment) {
     return unitMap.putIfAbsent(libraryFragment, () {
-      assert(unitLibraryUris.length == unitUnitUris.length);
-      int id = unitUnitUris.length;
-      unitLibraryUris.add(
+      assert(unitLibraryPaths.length == unitUnitPaths.length);
+      int id = unitUnitPaths.length;
+      unitLibraryPaths.add(
         _getSourceInfo(libraryFragment.element.firstFragment.source),
       );
-      unitUnitUris.add(_getSourceInfo(libraryFragment.source));
+      unitUnitPaths.add(_getSourceInfo(libraryFragment.source));
       return id;
     });
   }
@@ -537,11 +540,7 @@ class _IndexAssembler {
 }
 
 /// Visits a resolved AST and adds relationships into the [assembler].
-class _IndexContributor extends GeneralizingAstVisitor {
-  static final _expectationPattern = RegExp(
-    r'//[ \t]*\[diag\.([a-zA-Z0-9_]+)\]',
-  );
-
+class _IndexContributor extends GeneralizingAstVisitor2 {
   final _IndexAssembler assembler;
   final CompilationUnit unit;
 
@@ -664,6 +663,57 @@ class _IndexContributor extends GeneralizingAstVisitor {
 
   void recordUriReference(Element? element, StringLiteral uri) {
     recordRelation(element, IndexRelationKind.IS_REFERENCED_BY, uri, true);
+  }
+
+  @override
+  void visitAnnotation(Annotation node) {
+    if (node.element case ConstructorElement element) {
+      var baseElement = _getActualConstructorElement(element.baseElement);
+      if (node.constructorName case var constructorName?) {
+        var offset = node.period!.offset;
+        recordRelationOffset(
+          baseElement,
+          IndexRelationKind.IS_INVOKED_BY,
+          offset,
+          constructorName.end - offset,
+          true,
+        );
+      } else if (node.name case PrefixedIdentifier(
+        :var period,
+        identifier: SimpleIdentifier(element: ConstructorElement()),
+      )) {
+        recordRelationOffset(
+          baseElement,
+          IndexRelationKind.IS_INVOKED_BY,
+          period.offset,
+          node.name.end - period.offset,
+          true,
+        );
+      } else {
+        var offset = node.typeArguments?.end ?? node.name.end;
+        recordRelationOffset(
+          baseElement,
+          IndexRelationKind.IS_INVOKED_BY,
+          offset,
+          0,
+          true,
+        );
+      }
+
+      if (node.name case PrefixedIdentifier(
+        prefix: var prefix,
+        identifier: SimpleIdentifier(element: ConstructorElement()),
+      )) {
+        prefix.accept2(this);
+      } else {
+        node.name.accept2(this);
+      }
+      node.typeArguments?.accept2(this);
+      node.arguments?.accept2(this);
+      return;
+    }
+
+    super.visitAnnotation(node);
   }
 
   @override
@@ -800,7 +850,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
     var fieldName = node.fieldName;
     var element = fieldName.element;
     recordRelation(element, IndexRelationKind.IS_WRITTEN_BY, fieldName, true);
-    node.expression.accept(this);
+    node.expression.accept2(this);
   }
 
   @override
@@ -829,7 +879,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
 
     recordRelationOffset(element, kind, offset, length, true);
 
-    node.type.accept(this);
+    node.type.accept2(this);
   }
 
   @override
@@ -843,7 +893,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
       node.constructorName,
       true,
     );
-    node.argumentList.accept(this);
+    node.argumentList.accept2(this);
   }
 
   @override
@@ -851,8 +901,8 @@ class _IndexContributor extends GeneralizingAstVisitor {
     var name = node.memberName;
     var element = name.element;
     recordRelation(element, IndexRelationKind.IS_INVOKED_BY, name, true);
-    node.typeArguments?.accept(this);
-    node.argumentList.accept(this);
+    node.typeArguments?.accept2(this);
+    node.argumentList.accept2(this);
   }
 
   @override
@@ -927,7 +977,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
   @override
   void visitExtendsClause(ExtendsClause node) {
     recordSuperType(node.superclass, IndexRelationKind.IS_EXTENDED_BY);
-    node.superclass.accept(this);
+    node.superclass.accept2(this);
   }
 
   @override
@@ -938,8 +988,8 @@ class _IndexContributor extends GeneralizingAstVisitor {
       element: node.element,
     );
 
-    node.typeArguments?.accept(this);
-    node.argumentList.accept(this);
+    node.typeArguments?.accept2(this);
+    node.argumentList.accept2(this);
   }
 
   @override
@@ -972,7 +1022,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
   void visitImplementsClause(ImplementsClause node) {
     for (NamedType namedType in node.interfaces) {
       recordSuperType(namedType, IndexRelationKind.IS_IMPLEMENTED_BY);
-      namedType.accept(this);
+      namedType.accept2(this);
     }
   }
 
@@ -1021,9 +1071,9 @@ class _IndexContributor extends GeneralizingAstVisitor {
         ? IndexRelationKind.IS_REFERENCED_BY
         : IndexRelationKind.IS_INVOKED_BY;
     recordRelation(element, kind, name, isQualified);
-    node.target?.accept(this);
-    node.typeArguments?.accept(this);
-    node.argumentList.accept(this);
+    node.target?.accept2(this);
+    node.typeArguments?.accept2(this);
+    node.argumentList.accept2(this);
   }
 
   @override
@@ -1036,7 +1086,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
   void visitMixinOnClause(MixinOnClause node) {
     for (NamedType namedType in node.superclassConstraints) {
       recordSuperType(namedType, IndexRelationKind.CONSTRAINS);
-      namedType.accept(this);
+      namedType.accept2(this);
     }
   }
 
@@ -1065,7 +1115,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
       element: node.element,
     );
 
-    node.typeArguments?.accept(this);
+    node.typeArguments?.accept2(this);
   }
 
   @override
@@ -1155,7 +1205,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
         true,
       );
     }
-    node.argumentList.accept(this);
+    node.argumentList.accept2(this);
   }
 
   @override
@@ -1220,18 +1270,15 @@ class _IndexContributor extends GeneralizingAstVisitor {
     // Index analyzer diagnostic expectations inside string literals.
     if (_analyzerDiagnosticLibrary case var diagnosticLibrary?) {
       var lexeme = node.literal.lexeme;
-      var matches = _expectationPattern.allMatches(lexeme);
       var tokenOffset = node.literal.offset;
-      for (var match in matches) {
-        var name = match.group(1)!;
-        var start = (match.end - 1) - name.length;
-        var element = diagnosticLibrary.exportNamespace.get2(name);
+      for (var reference in analyzerDiagnosticExpectationReferences(lexeme)) {
+        var element = diagnosticLibrary.exportNamespace.get2(reference.name);
         if (element is GetterElement) {
           recordRelationOffset(
             element.variable,
             IndexRelationKind.IS_REFERENCED_BY,
-            tokenOffset + start,
-            name.length,
+            tokenOffset + reference.offsetInLexeme,
+            reference.name.length,
             true,
           );
         }
@@ -1264,7 +1311,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
         true,
       );
     }
-    node.argumentList.accept(this);
+    node.argumentList.accept2(this);
   }
 
   @override
@@ -1291,7 +1338,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
   void visitWithClause(WithClause node) {
     for (NamedType namedType in node.mixinTypes) {
       recordSuperType(namedType, IndexRelationKind.IS_MIXED_IN_BY);
-      namedType.accept(this);
+      namedType.accept2(this);
     }
   }
 
@@ -1381,10 +1428,7 @@ class _IndexContributor extends GeneralizingAstVisitor {
     var unitLibrary = unit.declaredFragment!.element;
 
     var uriStr = unitLibrary.uri.toString();
-    var isAnalyzerTest =
-        uriStr.startsWith('package:test/') ||
-        uriStr.contains('/pkg/analyzer/test/');
-    if (!isAnalyzerTest) {
+    if (!canContainAnalyzerDiagnosticExpectations(uriStr)) {
       return null;
     }
 
@@ -1392,12 +1436,6 @@ class _IndexContributor extends GeneralizingAstVisitor {
       var elementFactory = unitLibrary.session.elementFactory;
       var diagnosticLibrary = elementFactory.libraryOfUri(
         Uri.parse('package:analyzer/src/diagnostic/diagnostic.dart'),
-      );
-      if (diagnosticLibrary != null) {
-        return diagnosticLibrary;
-      }
-      diagnosticLibrary = elementFactory.libraryOfUri(
-        Uri.parse('package:test/diagnostic.dart'),
       );
       if (diagnosticLibrary != null) {
         return diagnosticLibrary;
@@ -1527,10 +1565,11 @@ class _SubtypeInfo {
 
 extension AnalysisDriverUnitIndexExtension on AnalysisDriverUnitIndex {
   int getLibraryFragmentId(LibraryFragmentImpl fragment) {
-    var libraryUriId = getSourceId(fragment.element.firstFragment.source);
-    var unitUriId = getSourceId(fragment.source);
-    for (var i = 0; i < unitLibraryUris.length; i++) {
-      if (unitLibraryUris[i] == libraryUriId && unitUnitUris[i] == unitUriId) {
+    var libraryPathId = getSourceId(fragment.element.firstFragment.source);
+    var unitPathId = getSourceId(fragment.source);
+    for (var i = 0; i < unitLibraryPaths.length; i++) {
+      if (unitLibraryPaths[i] == libraryPathId &&
+          unitUnitPaths[i] == unitPathId) {
         return i;
       }
     }

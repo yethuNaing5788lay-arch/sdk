@@ -2,6 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
+import 'dart:typed_data';
+
 import '../serialize/printer.dart';
 import '../serialize/serialize.dart';
 import 'ir.dart';
@@ -578,6 +580,7 @@ abstract mixin class Instruction implements Serializable {
           final instruction = V128Instruction.fromOpcode(opcode);
           if (instruction != null) return instruction;
           return switch (opcode) {
+            0x0C => V128Const.deserialize(d),
             0x0D => I8x16Shuffle.deserialize(d),
             0x15 => I8x16ExtractLaneS.deserialize(d),
             0x16 => I8x16ExtractLaneU.deserialize(d),
@@ -3135,6 +3138,30 @@ class F64Const extends Instruction {
   String get name => 'f64.const $value';
 }
 
+class V128Const extends Instruction {
+  final Uint8List bytes;
+
+  V128Const(this.bytes) : assert(bytes.length == 16);
+
+  static V128Const deserialize(Deserializer d) {
+    return V128Const(d.readBytes(16));
+  }
+
+  @override
+  bool get isConstant => true;
+
+  @override
+  void serialize(Serializer s) {
+    s.writeByte(0xFD);
+    s.writeUnsigned(0x0C);
+    s.writeBytes(bytes);
+  }
+
+  @override
+  String get name =>
+      'v128.const 0x${bytes.map((b) => b.toRadixString(16).padLeft(2, "0")).join()}';
+}
+
 class I32Eqz extends SingleByteInstruction {
   const I32Eqz() : super(0x45);
 
@@ -4442,6 +4469,7 @@ enum V128Instruction with Instruction {
   v128AnyTrue(0x53, 'v128.any_true'),
   i8x16Neg(0x61, 'i8x16.neg'),
   i8x16AllTrue(0x63, 'i8x16.all_true'),
+  i8x16Bitmask(0x64, 'i8x16.bitmask'),
   f32x4Ceil(0x67, 'f32x4.ceil'),
   f32x4Floor(0x68, 'f32x4.floor'),
   f32x4Trunc(0x69, 'f32x4.trunc'),
@@ -4454,17 +4482,20 @@ enum V128Instruction with Instruction {
   f64x2Nearest(0x94, 'f64x2.nearest'),
   i16x8Neg(0x81, 'i16x8.neg'),
   i16x8AllTrue(0x83, 'i16x8.all_true'),
+  i16x8Bitmask(0x84, 'i16x8.bitmask'),
   i16x8Add(0x8E, 'i16x8.add'),
   i16x8Sub(0x91, 'i16x8.sub'),
   i16x8Mul(0x95, 'i16x8.mul'),
   i32x4Neg(0xA1, 'i32x4.neg'),
   i32x4AllTrue(0xA3, 'i32x4.all_true'),
+  i32x4Bitmask(0xA4, 'i32x4.bitmask'),
   i32x4Add(0xAE, 'i32x4.add'),
   i32x4Sub(0xB1, 'i32x4.sub'),
   i32x4Mul(0xB5, 'i32x4.mul'),
   i32x4DotI16x8(0xBA, 'i32x4.dot_i16x8_s'),
   i64x2Neg(0xC1, 'i64x2.neg'),
   i64x2AllTrue(0xC3, 'i64x2.all_true'),
+  i64x2Bitmask(0xC4, 'i64x2.bitmask'),
   i64x2Add(0xCE, 'i64x2.add'),
   i64x2Sub(0xD1, 'i64x2.sub'),
   i64x2Mul(0xD5, 'i64x2.mul'),

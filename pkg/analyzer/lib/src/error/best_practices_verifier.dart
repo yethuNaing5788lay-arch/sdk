@@ -42,7 +42,7 @@ import 'package:meta/meta.dart';
 
 /// Instances of the class `BestPracticesVerifier` traverse an AST structure
 /// looking for violations of Dart best practices.
-class BestPracticesVerifier extends RecursiveAstVisitor<void> {
+class BestPracticesVerifier extends RecursiveAstVisitor2<void> {
   /// The class containing the AST nodes being visited, or `null` if we are not
   /// in the scope of a class.
   InterfaceElement? _enclosingClass;
@@ -97,6 +97,9 @@ class BestPracticesVerifier extends RecursiveAstVisitor<void> {
   late final bool _inPackagePublicApi =
       _workspacePackage != null &&
       _workspacePackage.sourceIsInPublicApi(_currentLibrary.source);
+
+  /// Whether we are currently in a primary constructor declaration.
+  bool _inPrimaryConstructorDeclaration = false;
 
   BestPracticesVerifier(
     this._diagnosticReporter,
@@ -770,9 +773,11 @@ class BestPracticesVerifier extends RecursiveAstVisitor<void> {
 
   @override
   void visitPrimaryConstructorDeclaration(PrimaryConstructorDeclaration node) {
+    _inPrimaryConstructorDeclaration = true;
     _checkStrictInferenceInParameters(node.formalParameters);
     _deprecatedFunctionalityVerifier.primaryConstructorDeclaration(node);
     super.visitPrimaryConstructorDeclaration(node);
+    _inPrimaryConstructorDeclaration = false;
   }
 
   @override
@@ -926,7 +931,12 @@ class BestPracticesVerifier extends RecursiveAstVisitor<void> {
 
   void _checkFinalParameter(FormalParameter node) {
     if (node.finalKeyword case var finalKeyword?) {
-      _diagnosticReporter.report(diag.unnecessaryFinal.at(finalKeyword));
+      if (!_inPrimaryConstructorDeclaration) {
+        // If we have the erroneous case of `class C(final this.x);` we model
+        // the as an initializing formal instead of a declaring parameter, but
+        // don't want to report the warning here.
+        _diagnosticReporter.report(diag.unnecessaryFinal.at(finalKeyword));
+      }
     }
   }
 
@@ -1418,10 +1428,10 @@ class BestPracticesVerifier extends RecursiveAstVisitor<void> {
             .map((p) => p.declaredFragment!.element)
             .toSet(),
       );
-      body?.accept(usedVisitor);
+      body?.accept2(usedVisitor);
       if (initializers != null) {
         for (var initializer in initializers) {
-          initializer.accept(usedVisitor);
+          initializer.accept2(usedVisitor);
         }
       }
 
@@ -2026,7 +2036,7 @@ class _InvalidAccessVerifier {
 
 /// A visitor that determines, upon visiting a function body and/or a
 /// constructor's initializers, whether a parameter is referenced.
-class _UsedParameterVisitor extends RecursiveAstVisitor<void> {
+class _UsedParameterVisitor extends RecursiveAstVisitor2<void> {
   final Set<FormalParameterElement> _parameters;
 
   final Set<FormalParameterElement> _usedParameters = {};

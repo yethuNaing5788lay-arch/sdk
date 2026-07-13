@@ -412,6 +412,7 @@ static Dart_Isolate IsolateSetupHelper(Dart_Isolate isolate,
   native_assets.dlopen_executable = &NativeAssets::DlopenExecutable;
   native_assets.dlopen_process = &NativeAssets::DlopenProcess;
   native_assets.dlsym = &NativeAssets::Dlsym;
+  native_assets.dlclose = &NativeAssets::Dlclose;
   Dart_InitializeNativeAssetsResolver(&native_assets);
 #endif  // !defined(DART_PRECOMPILER)
 
@@ -537,14 +538,32 @@ static Dart_Isolate CreateAndSetupServiceIsolate(const char* script_uri,
 #if defined(EXPERIMENTAL_VM_SERVICE)
   if (Options::experimental_vm_service()) {
     VmService::enable_experimental_vm_service = true;
+    const bool vm_service_explicitly_requested =
+        (Options::vm_service_server_port() >= 0);
     auto [app_snapshot, script_name] = Snapshot::TryReadSDKSnapshot(
-#if defined(DART_PRECOMIPLED_RUNTIME)
-        "dart_runtime_service_vm_aot.dart.snapshot");
+#if defined(DART_PRECOMPILED_RUNTIME)
+        "dart_runtime_service_vm_aot.dart.snapshot",
 #else
-        "dart_runtime_service_vm.dart.snapshot");
+        "dart_runtime_service_vm.dart.snapshot",
 #endif  // defined(DART_PRECOMPILED_RUNTIME)
+        /*verbose=*/vm_service_explicitly_requested);
     if (app_snapshot == nullptr) {
-      Platform::Exit(kErrorExitCode);
+      // This situation can happen when bootstrapping the VM service snapshot
+      // itself, or on clean builds before the snapshot has been generated.
+      // If the service was not explicitly requested, we fail silently and
+      // run without the service isolate. If it was explicitly requested, we
+      // fail fatally.
+      if (vm_service_explicitly_requested) {
+        Syslog::PrintErr("Error: Unable to find VM service snapshot.\n");
+        if (error != nullptr) {
+          *error = Utils::StrDup("Unable to find VM service snapshot.");
+        }
+        delete isolate_group_data;
+        Platform::Exit(kErrorExitCode);
+      } else {
+        delete isolate_group_data;
+        return nullptr;
+      }
     }
     app_snapshot->SetBuffers(&snapshot_data, &snapshot_text);
   } else {
@@ -690,9 +709,12 @@ static Dart_Isolate CreateIsolateGroupAndSetupHelper(
   PathSanitizer packages_config_sanitizer(packages_config);
 #endif  // !defined(DART_PRECOMPILED_RUNTIME)
 
-  auto isolate_group_data =
-      new IsolateGroupData(script_uri, asset_resolution_base, packages_config,
-                           app_snapshot, isolate_run_app_snapshot);
+  auto isolate_group_data = new IsolateGroupData(
+      is_main_isolate && Options::script_uri_override() != nullptr
+          ? Options::script_uri_override()
+          : script_uri,
+      asset_resolution_base, packages_config, app_snapshot,
+      isolate_run_app_snapshot);
   if (kernel_buffer != nullptr) {
     isolate_group_data->SetKernelBufferNewlyOwned(kernel_buffer,
                                                   kernel_buffer_size);

@@ -28,7 +28,7 @@ class ConstructorReferenceResolver {
         diag.sdkVersionConstructorTearoffs.at(node),
       );
     }
-    node.constructorName.accept(_resolver);
+    node.constructorName.accept2(_resolver);
     var element = node.constructorName.element;
     if (element != null && !element.isFactory) {
       var enclosingElement = element.enclosingElement;
@@ -97,9 +97,9 @@ class ConstructorReferenceResolver {
       definingLibrary: _resolver.definingLibrary,
     );
 
-    // If the constructor is generic, we'll have a ConstructorMember that
-    // substitutes in type arguments (possibly `dynamic`) from earlier in
-    // resolution.
+    // If the constructor is generic, we'll have a
+    // SubstitutedConstructorElementImpl that substitutes in type arguments
+    // (possibly `dynamic`) from earlier in resolution.
     //
     // Otherwise we'll have a ConstructorElement, and we can skip inference
     // because there's nothing to infer in a non-generic type.

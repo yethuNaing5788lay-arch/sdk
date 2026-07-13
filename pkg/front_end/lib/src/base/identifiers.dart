@@ -3,11 +3,11 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:_fe_analyzer_shared/src/scanner/scanner.dart' show Token;
-import 'package:kernel/ast.dart' show Expression;
 
 import '../builder/builder.dart';
 import '../builder/type_builder.dart';
 import '../kernel/expression_generator.dart';
+import '../kernel/internal_ast.dart';
 import 'operator.dart';
 import 'problems.dart' show unhandled, unsupported;
 
@@ -27,19 +27,14 @@ abstract class Identifier {
   /// [QualifiedName], this is the offset of the suffix.
   int get nameOffset;
 
-  Expression? get initializer;
+  InternalExpression? get initializer;
 
   Operator? get operator;
 
   TypeName get typeName;
 }
 
-class OmittedIdentifier implements Identifier {
-  @override
-  final Token token;
-
-  new(this.token);
-
+class OmittedIdentifier(@override final Token token) implements Identifier {
   int get charOffset => token.charOffset;
 
   @override
@@ -48,7 +43,7 @@ class OmittedIdentifier implements Identifier {
 
   @override
   // Coverage-ignore(suite): Not run.
-  Expression? get initializer => null;
+  InternalExpression? get initializer => null;
 
   @override
   String get name => '';
@@ -73,12 +68,8 @@ class OmittedIdentifier implements Identifier {
   String toString() => "OmittedIdentifier()";
 }
 
-abstract class IdentifierImpl implements Identifier {
-  @override
-  final Token token;
-
-  new(this.token);
-
+abstract class IdentifierImpl(@override final Token token)
+    implements Identifier {
   @override
   String get name => token.lexeme;
 
@@ -94,7 +85,7 @@ abstract class IdentifierImpl implements Identifier {
   int get nameOffset => charOffset;
 
   @override
-  Expression? get initializer => null;
+  InternalExpression? get initializer => null;
 
   @override
   Operator? get operator => null;
@@ -106,9 +97,7 @@ abstract class IdentifierImpl implements Identifier {
   String toString() => "IdentifierImpl($name)";
 }
 
-class SimpleIdentifier extends IdentifierImpl {
-  new(super.token);
-
+class SimpleIdentifier(super.token) extends IdentifierImpl {
   QualifiedNameIdentifier withIdentifierQualifier(Identifier qualifier) {
     return new QualifiedNameIdentifier(qualifier, token);
   }
@@ -126,14 +115,11 @@ class SimpleIdentifier extends IdentifierImpl {
   String toString() => "SimpleIdentifier($name)";
 }
 
-class OperatorIdentifier implements Identifier {
-  @override
-  final Token token;
-
+class OperatorIdentifier(@override final Token token) implements Identifier {
   @override
   final Operator operator;
 
-  new(this.token) : this.operator = Operator.fromText(token.stringValue!)!;
+  this : this.operator = Operator.fromText(token.stringValue!)!;
 
   @override
   String get name => operator.text;
@@ -152,7 +138,7 @@ class OperatorIdentifier implements Identifier {
 
   @override
   // Coverage-ignore(suite): Not run.
-  Expression? get initializer => null;
+  InternalExpression? get initializer => null;
 
   @override
   // Coverage-ignore(suite): Not run.
@@ -164,11 +150,11 @@ class OperatorIdentifier implements Identifier {
   String toString() => "Operator($name)";
 }
 
-class InitializedIdentifier extends SimpleIdentifier {
-  @override
-  final Expression initializer;
-
-  new(Identifier identifier, this.initializer) : super(identifier.token);
+class InitializedIdentifier(
+  Identifier identifier,
+  @override final InternalExpression initializer,
+) extends SimpleIdentifier {
+  this : super(identifier.token);
 
   @override
   // Coverage-ignore(suite): Not run.
@@ -180,15 +166,10 @@ class InitializedIdentifier extends SimpleIdentifier {
   String toString() => "initialized-identifier($name, $initializer)";
 }
 
-sealed class QualifiedName extends IdentifierImpl {
-  new(Token suffix) : super(suffix);
-}
+sealed class QualifiedName(super.suffix) extends IdentifierImpl;
 
-class QualifiedNameIdentifier extends QualifiedName {
-  final Identifier qualifier;
-
-  new(this.qualifier, Token suffix) : super(suffix);
-
+class QualifiedNameIdentifier(final Identifier qualifier, super.suffix)
+    extends QualifiedName {
   // Coverage-ignore(suite): Not run.
   Token get suffix => token;
 
@@ -209,11 +190,8 @@ class QualifiedNameIdentifier extends QualifiedName {
   String toString() => "qualified-name-identifier($qualifier, $name)";
 }
 
-class QualifiedNameGenerator extends QualifiedName {
-  final Generator qualifier;
-
-  new(this.qualifier, Token suffix) : super(suffix);
-
+class QualifiedNameGenerator(final Generator qualifier, super.suffix)
+    extends QualifiedName {
   Token get suffix => token;
 
   @override
@@ -225,11 +203,8 @@ class QualifiedNameGenerator extends QualifiedName {
 }
 
 // Coverage-ignore(suite): Not run.
-class QualifiedNameBuilder extends QualifiedName {
-  final Builder qualifier;
-
-  new(this.qualifier, Token suffix) : super(suffix);
-
+class QualifiedNameBuilder(final Builder qualifier, super.suffix)
+    extends QualifiedName {
   Token get suffix => token;
 
   @override

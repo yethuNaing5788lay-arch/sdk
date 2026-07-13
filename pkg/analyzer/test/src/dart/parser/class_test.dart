@@ -1822,6 +1822,29 @@ ClassDeclaration
 ''');
   }
 
+  test_method_augment_external() {
+    var parseResult = parseTestCodeWithDiagnostics(r'''
+augment class A {
+  augment external void foo();
+}
+''');
+
+    var node = parseResult.findNode.singleMethodDeclaration;
+    assertParsedNodeText(node, r'''
+MethodDeclaration
+  augmentKeyword: augment
+  externalKeyword: external
+  returnType: NamedType
+    name: void
+  name: foo
+  parameters: FormalParameterList
+    leftParenthesis: (
+    rightParenthesis: )
+  body: EmptyFunctionBody
+    semicolon: ;
+''');
+  }
+
   test_method_augment_static() {
     var parseResult = parseTestCodeWithDiagnostics(r'''
 augment class A {
@@ -2430,8 +2453,9 @@ ClassDeclaration
   test_primaryConstructor_const_typeName_periodName_noFormalParameters() {
     var parseResult = parseTestCodeWithDiagnostics(r'''
 class const A.named {}
+//            ^^^^^
+// [diag.missingPrimaryConstructorParameters] A primary constructor declaration must have formal parameters.
 ''');
-    // TODO(scheglov): this is wrong.
 
     var node = parseResult.findNode.singleClassDeclaration;
     assertParsedNodeText(node, r'''
@@ -2929,6 +2953,8 @@ ClassDeclaration
   test_primaryConstructor_fieldFormalParameter_final() {
     var parseResult = parseTestCodeWithDiagnostics(r'''
 class A(final int this.a) {}
+//                ^^^^
+// [diag.initializingDeclaringParameter] Declaring parameters can't be initializing.
 ''');
 
     var node = parseResult.findNode.singleClassDeclaration;
@@ -2956,6 +2982,8 @@ ClassDeclaration
   test_primaryConstructor_fieldFormalParameter_var() {
     var parseResult = parseTestCodeWithDiagnostics(r'''
 class A(var int this.a) {}
+//              ^^^^
+// [diag.initializingDeclaringParameter] Declaring parameters can't be initializing.
 ''');
 
     var node = parseResult.findNode.singleClassDeclaration;
@@ -3340,9 +3368,36 @@ ClassDeclaration
 ''');
   }
 
+  test_primaryConstructor_notConst_typeName_periodName_noFormalParameters() {
+    var parseResult = parseTestCodeWithDiagnostics(r'''
+class A.named {}
+//      ^^^^^
+// [diag.missingPrimaryConstructorParameters] A primary constructor declaration must have formal parameters.
+''');
+
+    var node = parseResult.findNode.singleClassDeclaration;
+    assertParsedNodeText(node, r'''
+ClassDeclaration
+  classKeyword: class
+  namePart: PrimaryConstructorDeclaration
+    typeName: A
+    constructorName: PrimaryConstructorName
+      period: .
+      name: named
+    formalParameters: FormalParameterList
+      leftParenthesis: ( <synthetic>
+      rightParenthesis: ) <synthetic>
+  body: BlockClassBody
+    leftBracket: {
+    rightBracket: }
+''');
+  }
+
   test_primaryConstructor_superFormalParameter_final_namedType() {
     var parseResult = parseTestCodeWithDiagnostics(r'''
 class A(final int super.a) {}
+//                ^^^^^
+// [diag.superInitializingDeclaringParameter] Declaring parameters can't be super parameters.
 ''');
     // TODO(scheglov): this is wrong.
 
@@ -3371,8 +3426,8 @@ ClassDeclaration
   test_primaryConstructor_superFormalParameter_var_namedType() {
     var parseResult = parseTestCodeWithDiagnostics(r'''
 class A(var int super.a) {}
-//      ^^^
-// [diag.extraneousModifier] Can't have modifier 'var' here.
+//              ^^^^^
+// [diag.superInitializingDeclaringParameter] Declaring parameters can't be super parameters.
 ''');
 
     var node = parseResult.findNode.singleClassDeclaration;
@@ -3513,6 +3568,23 @@ PrimaryConstructorBody
       atSign: @
       name: SimpleIdentifier
         token: deprecated
+  thisKeyword: this
+  body: EmptyFunctionBody
+    semicolon: ;
+''');
+  }
+
+  test_primaryConstructorBody_modifier_augment() {
+    var parseResult = parseTestCodeWithDiagnostics(r'''
+augment class A() {
+  augment this;
+}
+''');
+
+    var node = parseResult.findNode.singlePrimaryConstructorBody;
+    assertParsedNodeText(node, r'''
+PrimaryConstructorBody
+  augmentKeyword: augment
   thisKeyword: this
   body: EmptyFunctionBody
     semicolon: ;

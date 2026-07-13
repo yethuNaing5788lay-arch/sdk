@@ -42,16 +42,12 @@ import 'package:kernel/ast.dart'
         Class,
         Component,
         DynamicType,
-        Expression,
         FunctionNode,
         Library,
         Name,
         Procedure,
         ProcedureKind,
-        StringLiteral,
         TypeParameter,
-        Variable,
-        VariableGet,
         defaultLanguageVersion;
 import 'package:kernel/class_hierarchy.dart';
 import 'package:kernel/core_types.dart';
@@ -76,14 +72,31 @@ Future<void> main() async {
     CoreTypes coreTypes = new CoreTypes(component);
     ClassHierarchy hierarchy = new ClassHierarchy(component, coreTypes);
 
-    Expression argument = new StringLiteral("arg");
+    InternalExpression argument = new InternalStringLiteral(
+      "arg",
+      fileOffset: -1,
+    );
     ActualArguments arguments = new ActualArguments(
       argumentList: [new PositionalArgument(argument)],
       hasNamedBeforePositional: false,
       positionalCount: 1,
     );
-    Expression expression = new VariableGet(new Variable("expression"));
-    Expression index = new VariableGet(new Variable("index"));
+    InternalExpression expression = new InternalVariableGet(
+      new InternalLocalVariable(
+        name: "expression",
+        type: const DynamicType(),
+        isImplicitlyTyped: false,
+        fileOffset: -1,
+      ),
+    );
+    InternalExpression index = new InternalVariableGet(
+      new InternalLocalVariable(
+        name: "index",
+        type: const DynamicType(),
+        isImplicitlyTyped: false,
+        fileOffset: -1,
+      ),
+    );
     UriTranslator uriTranslator = await c.options.getUriTranslator();
     SourceLoader loader = new KernelTarget(
       c,
@@ -177,9 +190,8 @@ Future<void> main() async {
       new TypeParameter("T", const DynamicType(), const DynamicType()),
       loader: null,
     );
-    InternalVariable variable = new VariableDeclarationImpl(
-      null,
-      isSynthesized: true,
+    InternalVariable variable = new InternalSyntheticVariable(
+      isImplicitlyTyped: false,
       fileOffset: -1,
     );
 
@@ -246,7 +258,7 @@ Future<void> main() async {
       new DelayedPostfixIncrement(helper, token, generator, binaryOperator),
     );
     check(
-      "VariableUseGenerator(offset: 4, variable: dynamic #0)",
+      "VariableUseGenerator(offset: 4, variable: dynamic <unnamed-variable>)",
       new VariableUseGenerator(helper, token, variable),
     );
     check(

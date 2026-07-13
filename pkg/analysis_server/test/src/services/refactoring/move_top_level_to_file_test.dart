@@ -37,19 +37,6 @@ void main() {
 class InteractiveFormsMoveTopLevelToFileTest extends MoveTopLevelToFileTest
     with InteractiveFormsTestMixin {
   @override
-  Future<void> initializeServer({
-    bool experimentalOptInFlag = true,
-    // We default this to true for these tests, though it's false in the
-    // the super implementation.
-    bool experimentalInteractiveForms = true,
-  }) {
-    return super.initializeServer(
-      experimentalOptInFlag: experimentalOptInFlag,
-      experimentalInteractiveForms: experimentalInteractiveForms,
-    );
-  }
-
-  @override
   void setUp() {
     super.setUp();
 
@@ -96,6 +83,30 @@ class A {}
     var action = await expectCodeActionWithTitle(simpleClassRefactorTitle);
     var actionLiteral = action.asCodeActionLiteral;
     expect(actionLiteral.data, isNull);
+  }
+
+  Future<void> test_protocol_expectedFields() async {
+    addTestSource(simpleClassContent);
+
+    await initializeServer();
+    var action = await expectCodeActionWithTitle(simpleClassRefactorTitle);
+    var command = action.asCommand;
+    var interactiveCommand = await resolveCommand(
+      ExecuteCommandParams(
+        command: command.command,
+        arguments: command.arguments,
+      ),
+    );
+
+    expect(interactiveCommand.formFields, hasLength(1));
+    var field = interactiveCommand.formFields!.single;
+    expect(
+      field.type,
+      isA<FormFieldTypeFile>()
+          .having((fieldType) => fieldType.type, 'type', FileType.Regular)
+          .having((fieldType) => fieldType.existence, 'existence', isNull)
+          .having((fieldType) => fieldType.filters, 'filters', ['dart']),
+    );
   }
 }
 
@@ -1400,19 +1411,12 @@ class A {}<<<<<<<<<<
     );
   }
 
-  Future<void>
-  test_protocol_available_withClientCommandParameterSupport() async {
+  Future<void> test_protocol_available() async {
     addTestSource(simpleClassContent);
     await initializeServer();
-    await expectCodeActionWithTitle(simpleClassRefactorTitle);
-  }
-
-  Future<void>
-  test_protocol_available_withoutClientCommandParameterSupport() async {
-    addTestSource(simpleClassContent);
-    await initializeServer();
-    // This refactor is available without command parameter support because
-    // it has defaults.
+    // This refactor is available regardless of command parameter support
+    // because it has a default value for the only field which is coded into
+    // the arguments by default.
     await expectCodeActionWithTitle(simpleClassRefactorTitle);
   }
 

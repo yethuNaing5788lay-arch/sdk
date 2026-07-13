@@ -232,6 +232,8 @@ import 'remove_parameters_in_getter_declaration_test.dart'
     as remove_parameters_in_getter_declaration;
 import 'remove_parentheses_in_getter_invocation_test.dart'
     as remove_parentheses_in_getter_invocation;
+import 'remove_primary_constructor_body_test.dart'
+    as remove_primary_constructor_body;
 import 'remove_print_test.dart' as remove_print;
 import 'remove_question_mark_test.dart' as remove_question_mark;
 import 'remove_required_test.dart' as remove_required;
@@ -313,6 +315,7 @@ import 'replace_with_not_null_aware_element_or_entry_test.dart'
 import 'replace_with_not_null_aware_test.dart' as replace_with_not_null_aware;
 import 'replace_with_null_aware_test.dart' as replace_with_null_aware;
 import 'replace_with_part_of_uri_test.dart' as replace_with_part_of_uri;
+import 'replace_with_syncvalue_test.dart' as replace_with_syncvalue;
 import 'replace_with_tear_off_test.dart' as replace_with_tear_off;
 import 'replace_with_unicode_escape_test.dart' as replace_with_unicode_escape_;
 import 'replace_with_var_test.dart' as replace_with_var;
@@ -532,6 +535,7 @@ void main() {
     remove_operator.main();
     remove_parameters_in_getter_declaration.main();
     remove_parentheses_in_getter_invocation.main();
+    remove_primary_constructor_body.main();
     remove_print.main();
     remove_question_mark.main();
     remove_required.main();
@@ -602,6 +606,7 @@ void main() {
     replace_with_not_null_aware_element_or_entry.main();
     replace_with_null_aware.main();
     replace_with_part_of_uri.main();
+    replace_with_syncvalue.main();
     replace_with_tear_off.main();
     replace_with_unicode_escape_.main();
     replace_with_var.main();

@@ -782,9 +782,8 @@ class AsyncStateVisitor extends SimpleAstVisitor<AsyncState> {
           // Check for asynchrony in the statements that _follow_ [reference],
           // as they may lead to an async gap before we loop back to
           // [reference].
-          return _inOrderAsyncStateGuardable(
-            statements.skip(index + 1),
-          )?.asynchronousOrNull;
+          return _inOrderAsyncStateGuardable(statements.skip(index + 1))
+              ?.asynchronousOrNull;
         }
         return null;
       }
@@ -1392,7 +1391,8 @@ extension on AstNode {
         self is ContinueStatement) {
       return true;
     }
-    return accept(ExitDetector()) ?? false;
+    // ignore: experimental_member_use
+    return accept2(ExitDetector()) ?? false;
   }
 }
 
@@ -1457,7 +1457,8 @@ extension on Statement {
     if (self is BreakStatement || self is ContinueStatement) {
       return true;
     }
-    return accept(ExitDetector()) ?? false;
+    // ignore: experimental_member_use
+    return accept2(ExitDetector()) ?? false;
   }
 }
 

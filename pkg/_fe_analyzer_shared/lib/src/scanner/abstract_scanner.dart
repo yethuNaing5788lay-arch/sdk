@@ -117,7 +117,7 @@ abstract class AbstractScanner implements Scanner {
   Token? commentsTail;
 
   @override
-  final List<int> lineStarts;
+  final LineStarts lineStarts;
 
   /**
    * The stack of open groups, e.g [: { ... ( .. :]
@@ -168,7 +168,9 @@ abstract class AbstractScanner implements Scanner {
   AbstractScanner._recoveryOptionScanner(
     AbstractScanner copyFrom,
     Token newEofToken,
-  ) : lineStarts = [],
+  ) : lineStarts = new LineStarts(
+        /*numberOfBytesHint - fake number, but doesn't really matter */ 1000,
+      ),
       includeComments = false,
       languageVersionChanged = null,
       inRecoveryOption = true,
@@ -952,22 +954,7 @@ abstract class AbstractScanner implements Scanner {
   @override
   Token tokenize() {
     while (!atEndOfFile()) {
-      int next = advance();
-
-      // Scan the header looking for a language version
-      if (next != $EOF) {
-        Token oldTail = tail;
-        next = bigHeaderSwitch(next);
-        if (next != $EOF && tail.kind == SCRIPT_TOKEN) {
-          oldTail = tail;
-          next = bigHeaderSwitch(next);
-        }
-        while (next != $EOF && tail == oldTail) {
-          next = bigHeaderSwitch(next);
-        }
-        next = next;
-      }
-
+      int next = _scanHeaderLookingForLanguageVersion(advance());
       while (next != $EOF) {
         next = bigSwitch(next);
       }
@@ -978,6 +965,88 @@ abstract class AbstractScanner implements Scanner {
     // Always pretend that there's a line at the end of the file.
     lineStarts.add(stringOffset + 1);
 
+    return firstToken();
+  }
+
+  int _scanHeaderLookingForLanguageVersion(int next) {
+    // Scan the header looking for a language version
+    if (next != $EOF) {
+      Token oldTail = tail;
+      next = bigHeaderSwitch(next);
+      if (next != $EOF && tail.kind == SCRIPT_TOKEN) {
+        oldTail = tail;
+        next = bigHeaderSwitch(next);
+      }
+      while (next != $EOF && tail == oldTail) {
+        next = bigHeaderSwitch(next);
+      }
+    }
+    return next;
+  }
+
+  /// Scan directives and as little as possible after the directives.
+  Token tokenizeDirectives() {
+    int next = _scanHeaderLookingForLanguageVersion(advance());
+
+    // If the first token can't be the start of a directive we can stop now.
+    Token? theFirstToken = tokens.next;
+    if (theFirstToken != null) {
+      if (theFirstToken.kind == SCRIPT_TOKEN) {
+        // A script token is OK - but we scanned further, _that_ has to be the
+        // start of a directive or we can stop now.
+        if (!_isTokenPossibleStartOfDirective(theFirstToken.next)) {
+          return _tokenizeDirectivesEndHelper(
+            !(theFirstToken.next?.isEof ?? true),
+          );
+        }
+      } else {
+        if (!_isTokenPossibleStartOfDirective(theFirstToken)) {
+          return _tokenizeDirectivesEndHelper(true);
+        }
+      }
+    }
+
+    while (next != $EOF) {
+      Token oldTail = tail;
+      next = bigSwitch(next);
+      if (!identical(oldTail, tail)) {
+        if (oldTail.isA(TokenType.SEMICOLON)) {
+          if (!_isTokenPossibleStartOfDirective(oldTail.next)) {
+            return _tokenizeDirectivesEndHelper(true);
+          }
+        }
+      }
+    }
+
+    return _tokenizeDirectivesEndHelper(false);
+  }
+
+  bool _isTokenPossibleStartOfDirective(Token? token) {
+    String? stringValue = token?.stringValue;
+    if (identical("@", stringValue) ||
+        identical("part", stringValue) ||
+        identical("library", stringValue) ||
+        identical("import", stringValue) ||
+        identical("export", stringValue)) {
+      return true;
+    }
+    return false;
+  }
+
+  Token _tokenizeDirectivesEndHelper(bool removeLast) {
+    if (removeLast) {
+      tail = tail.previous!;
+      tail.next = null;
+    }
+
+    // Clear grouping stack to avoid UnmatchedTokens.
+    while (!groupingStack.isEmpty) {
+      groupingStack = groupingStack.tail!;
+    }
+    appendEofToken();
+
+    // We pretend there's a line here.
+    lineStarts.add(stringOffset + 1);
     return firstToken();
   }
 
@@ -2475,6 +2544,21 @@ class LineStarts extends Object with ListMixin<int> {
     : array = _createInitialArray(numberOfBytesHint) {
     // The first line starts at character offset 0.
     add(/* value = */ 0);
+  }
+
+  // Coverage-ignore(suite): Not run.
+  /// Create a [Uint32List] or [Uint16List] (as needed) copy without the last
+  /// element. Used by the Analyzer.
+  List<int> copyToTypedDataWithoutLastElement() {
+    if (last > 65535) {
+      Uint32List list = new Uint32List(arrayLength - 1);
+      list.setRange(0, arrayLength - 1, array);
+      return list;
+    } else {
+      Uint16List list = new Uint16List(arrayLength - 1);
+      list.setRange(0, arrayLength - 1, array);
+      return list;
+    }
   }
 
   // Implement abstract members used by [ListMixin]

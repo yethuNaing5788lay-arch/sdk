@@ -116,7 +116,7 @@ final class LibraryResolutionContext {
 
 /// Instances of the class `ResolverVisitor` are used to resolve the nodes
 /// within a single compilation unit.
-class ResolverVisitor extends ThrowingAstVisitor<void>
+class ResolverVisitor extends ThrowingAstVisitor2<void>
     with
         ErrorDetectionHelpers,
         TypeAnalyzer<
@@ -398,6 +398,20 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   BodyInferenceContext? get bodyContext => _bodyContext;
 
+  /// If a class, or mixin, is being resolved, the type of the class, after
+  /// applying type promotion of `this`.
+  ///
+  /// If an extension is being resolved, the type of `this`, the declared
+  /// extended type.
+  ///
+  /// If the feature `this-promotion` is disabled, this getter returns the same
+  /// value as [thisType].
+  ///
+  /// Otherwise `null`.
+  TypeImpl? get effectiveThisType =>
+      flowAnalysis.flow?.promotedTypeOfThis?.unwrapTypeView() as TypeImpl? ??
+      thisType;
+
   @override
   FlowAnalysis<
     AstNodeImpl,
@@ -434,10 +448,14 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   bool get strictCasts => analysisOptions.strictCasts;
 
-  /// If a class, or mixin, is being resolved, the type of the class.
+  /// If a class, or mixin, is being resolved, the type of the class, before
+  /// applying type promotion of `this`.
   ///
   /// If an extension is being resolved, the type of `this`, the declared
-  /// extended type, or promoted.
+  /// extended type.
+  ///
+  /// If the feature `this-promotion` is disabled, this getter returns the same
+  /// value as [effectiveThisType].
   ///
   /// Otherwise `null`.
   TypeImpl? get thisType {
@@ -450,6 +468,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     SharedTypeSchemaView schema, {
     bool continueNullShorting = false,
     bool isVoidAllowed = false,
+    bool needsCoercion = false,
   }) {
     inferenceLogWriter?.setExpressionVisitCodePath(
       node,
@@ -460,6 +479,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       schema,
       continueNullShorting: continueNullShorting,
       isVoidAllowed: isVoidAllowed,
+      needsCoercion: needsCoercion,
     );
   }
 
@@ -746,6 +766,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     covariant ExpressionImpl expression,
     SharedTypeSchemaView context, {
     bool isVoidAllowed = false,
+    bool needsCoercion = false,
   }) {
     // Note: the analyzer doesn't use the `isVoidAllowed` boolean; it detects
     // invalid use of void through more ad hoc mechanisms. See
@@ -790,13 +811,13 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       }
       staticType = operations.unknownType.unwrapTypeSchemaView();
     }
-    var flowAnalysisInfo = flowAnalysis.flow?.getExpressionInfo(expression);
+    var flowAnalysisInfo = flowAnalysis.getExpressionInfo(expression);
     assert(() {
       // When the AST is rewritten, the analyzer's convention is to associate
       // flow analysis expression info with the original expression, not the
       // replacement. (Note, however, that it's ok to associate the same info
       // with both expressions.)
-      var replacementFlowAnalysisInfo = flowAnalysis.flow?.getExpressionInfo(
+      var replacementFlowAnalysisInfo = flowAnalysis.getExpressionInfo(
         replacementExpression,
       );
       assert(
@@ -841,7 +862,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
 
   @override
   void dispatchStatement(Statement statement) {
-    statement.accept(this);
+    statement.accept2(this);
   }
 
   @override
@@ -955,7 +976,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     // If any expression info or expression reference was stored for the
     // null-aware expression, it was only valid in the case where the target
     // expression was not null. So it needs to be cleared now.
-    flow.storeExpressionInfo(wholeExpression, null);
+    flowAnalysis.storeExpressionInfo(wholeExpression, null);
     return analysisResult;
   }
 
@@ -1033,7 +1054,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     var condition = popRewrite()!;
 
     var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-      flowAnalysis.flow?.getExpressionInfo(condition),
+      flowAnalysis.getExpressionInfo(condition),
     );
     boolExpressionVerifier.checkForNonBoolCondition(
       condition,
@@ -1063,7 +1084,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     var condition = popRewrite()!;
 
     var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-      flowAnalysis.flow?.getExpressionInfo(condition),
+      flowAnalysis.getExpressionInfo(condition),
     );
     boolExpressionVerifier.checkForNonBoolCondition(
       condition,
@@ -1478,7 +1499,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       );
       popRewrite();
       var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-        flowAnalysis.flow?.getExpressionInfo(node.index),
+        flowAnalysis.getExpressionInfo(node.index),
       );
       checkIndexExpressionIndex(
         node.index,
@@ -1583,7 +1604,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     ({SharedTypeView keyType, SharedTypeView valueType})? typeArguments;
     var typeArgumentsList = node.typeArguments;
     if (typeArgumentsList != null) {
-      typeArgumentsList.accept(this);
+      typeArgumentsList.accept2(this);
       // Check that we have exactly two type arguments.
       var length = typeArgumentsList.arguments.length;
       if (length == 2) {
@@ -1901,7 +1922,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
 
       flowAnalysis.flow?.anonymousBlockBody_begin();
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       var returnType = _finishFunctionBodyInference();
       flowAnalysis.flow?.anonymousBlockBody_end();
 
@@ -1974,7 +1995,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
           }
         }
       }
-      parameters.accept(this);
+      parameters.accept2(this);
       for (var parameter in parameters.parameters) {
         var element = parameter.declaredFragment?.element;
         if (element != null) {
@@ -1987,9 +2008,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
             flow.initialize(
               element,
               SharedTypeView(element.type),
-              target != null
-                  ? flowAnalysis.flow?.getExpressionInfo(target)
-                  : null,
+              target != null ? flowAnalysis.getExpressionInfo(target) : null,
               isFinal: false,
               isLate: false,
               isImplicitlyTyped: parameter.type == null,
@@ -2015,7 +2034,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       _thisType = parameterType;
       var target = node.target;
       var targetInfo = target != null
-          ? flowAnalysis.flow?.getExpressionInfo(target)
+          ? flowAnalysis.getExpressionInfo(target)
           : null;
       var body = node.body;
       flowAnalysis.flow?.thisBinding_begin(targetInfo);
@@ -2026,9 +2045,9 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
         _thisType = oldThisType;
       }
       if (body is AnonymousExpressionBodyImpl) {
-        flowAnalysis.flow?.storeExpressionInfo(
+        flowAnalysis.storeExpressionInfo(
           node,
-          flowAnalysis.flow?.getExpressionInfo(body.expression),
+          flowAnalysis.getExpressionInfo(body.expression),
         );
       }
     } else {
@@ -2077,7 +2096,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     popRewrite();
 
     checkUnreachableNode(node.type);
-    node.type.accept(this);
+    node.type.accept2(this);
 
     typeAnalyzer.visitAsExpression(node);
     flowAnalysis.asExpression(node);
@@ -2118,11 +2137,11 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       node.condition,
       locatableDiagnostic: diag.nonBoolExpression,
       whyNotPromoted: flowAnalysis.flow?.whyNotPromoted(
-        flowAnalysis.flow?.getExpressionInfo(node.condition),
+        flowAnalysis.getExpressionInfo(node.condition),
       ),
     );
     flowAnalysis.flow?.assert_afterCondition(
-      flowAnalysis.flow?.getExpressionInfo(node.condition),
+      flowAnalysis.getExpressionInfo(node.condition),
     );
     if (node.message case var message?) {
       analyzeExpression(message, operations.unknownType);
@@ -2145,11 +2164,11 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       node.condition,
       locatableDiagnostic: diag.nonBoolExpression,
       whyNotPromoted: flowAnalysis.flow?.whyNotPromoted(
-        flowAnalysis.flow?.getExpressionInfo(node.condition),
+        flowAnalysis.getExpressionInfo(node.condition),
       ),
     );
     flowAnalysis.flow?.assert_afterCondition(
-      flowAnalysis.flow?.getExpressionInfo(node.condition),
+      flowAnalysis.getExpressionInfo(node.condition),
     );
     if (node.message case var message?) {
       analyzeExpression(message, operations.unknownType);
@@ -2185,6 +2204,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
     var analysisResult = analyzeAwaitExpression(
+      node,
       node.expression,
       contextType.wrapSharedTypeSchemaView(),
     );
@@ -2222,18 +2242,18 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   void visitBlock(Block node) {
     inferenceLogWriter?.enterStatement(node);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     inferenceLogWriter?.exitStatement(node);
   }
 
   @override
   void visitBlockClassBody(BlockClassBody node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitBlockEnumBody(BlockEnumBody node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -2249,7 +2269,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
         imposedType: imposedType,
       );
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       return _finishFunctionBodyInference();
     } finally {
       _bodyContext = oldBodyContext;
@@ -2262,12 +2282,12 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     TypeImpl contextType = UnknownInferredType.instance,
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
-    flowAnalysis.flow?.storeExpressionInfo(
+    flowAnalysis.storeExpressionInfo(
       node,
       flowAnalysis.flow?.booleanLiteral(node.value),
     );
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitBooleanLiteral(node);
     inferenceLogWriter?.exitExpression(node);
   }
@@ -2294,7 +2314,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     popRewrite();
 
     flowAnalysis.flow!.cascadeExpression_afterTarget(
-      flowAnalysis.flow!.getExpressionInfo(node.target),
+      flowAnalysis.getExpressionInfo(node.target),
       SharedTypeView(targetType),
       isNullAware: node.isNullAware,
     );
@@ -2309,7 +2329,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     if (node.isNullAware) {
       flowAnalysis.flow!.nullAwareAccess_end();
     }
-    flowAnalysis.flow!.storeExpressionInfo(
+    flowAnalysis.storeExpressionInfo(
       node,
       flowAnalysis.flow!.cascadeExpression_end(),
     );
@@ -2321,12 +2341,12 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitCatchClause(CatchClause node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitCatchClauseParameter(CatchClauseParameter node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -2341,7 +2361,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     try {
       enclosingClass = declaredElement;
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       elementResolver.visitClassDeclaration(node);
     } finally {
       enclosingClass = outerType;
@@ -2359,7 +2379,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     var declaredElement = declaredFragment.element;
 
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitClassTypeAlias(node);
     baseOrFinalTypeVerifier.checkElement(
       declaredElement,
@@ -2370,7 +2390,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitComment(Comment node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -2389,12 +2409,12 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       NodeList<Directive> directives = node.directives;
       int directiveCount = directives.length;
       for (int i = 0; i < directiveCount; i++) {
-        directives[i].accept(this);
+        directives[i].accept2(this);
       }
       NodeList<CompilationUnitMember> declarations = node.declarations;
       int declarationCount = declarations.length;
       for (int i = 0; i < declarationCount; i++) {
-        declarations[i].accept(this);
+        declarations[i].accept2(this);
       }
       checkIdle();
     } finally {
@@ -2419,7 +2439,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     );
     condition = popRewrite()!;
     var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-      flowAnalysis.flow?.getExpressionInfo(condition),
+      flowAnalysis.getExpressionInfo(condition),
     );
     boolExpressionVerifier.checkForNonBoolCondition(
       condition,
@@ -2427,7 +2447,10 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     );
 
     if (flow != null) {
-      flow.conditional_thenBegin(flow.getExpressionInfo(condition), node);
+      flow.conditional_thenBegin(
+        flowAnalysis.getExpressionInfo(condition),
+        node,
+      );
       checkUnreachableNode(node.thenExpression);
     }
     analyzeExpression(node.thenExpression, SharedTypeSchemaView(contextType));
@@ -2438,7 +2461,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
 
     if (flow != null) {
       flow.conditional_elseBegin(
-        flow.getExpressionInfo(node.thenExpression),
+        flowAnalysis.getExpressionInfo(node.thenExpression),
         SharedTypeView(node.thenExpression.typeOrThrow),
       );
       checkUnreachableNode(elseExpression);
@@ -2450,11 +2473,11 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
 
     typeAnalyzer.visitConditionalExpression(node, contextType: contextType);
     if (flow != null) {
-      flow.storeExpressionInfo(
+      flowAnalysis.storeExpressionInfo(
         node,
         flow.conditional_end(
           SharedTypeView(node.typeOrThrow),
-          flow.getExpressionInfo(elseExpression),
+          flowAnalysis.getExpressionInfo(elseExpression),
           SharedTypeView(elseExpression.typeOrThrow),
         ),
       );
@@ -2482,10 +2505,10 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       assert(_thisType == null);
       _setupThisType();
       checkUnreachableNode(node);
-      node.documentationComment?.accept(this);
-      node.metadata.accept(this);
-      node.typeName?.accept(this);
-      node.parameters.accept(this);
+      node.documentationComment?.accept2(this);
+      node.metadata.accept2(this);
+      node.typeName?.accept2(this);
+      node.parameters.accept2(this);
 
       flowAnalysis.bodyOrInitializer_enter(node, element.formalParameters);
       flowAnalysis.executableDeclaration_enter(
@@ -2494,8 +2517,8 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
         isClosure: false,
       );
 
-      node.initializers.accept(this);
-      node.redirectedConstructor?.accept(this);
+      node.initializers.accept2(this);
+      node.redirectedConstructor?.accept2(this);
       node.body.resolve(this, returnType is DynamicType ? null : returnType);
       elementResolver.visitConstructorDeclaration(node);
 
@@ -2527,7 +2550,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     analyzeExpression(expression, SharedTypeSchemaView(fieldType));
     expression = popRewrite()!;
     var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-      flowAnalysis.flow?.getExpressionInfo(expression),
+      flowAnalysis.getExpressionInfo(expression),
     );
     if (fieldElement != null && enclosingFunction != null) {
       var enclosingConstructor = enclosingFunction as ConstructorElementImpl;
@@ -2542,7 +2565,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
 
   @override
   void visitConstructorName(ConstructorName node) {
-    node.type.accept(this);
+    node.type.accept2(this);
     elementResolver.visitConstructorName(node as ConstructorNameImpl);
   }
 
@@ -2560,7 +2583,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitConstructorSelector(ConstructorSelector node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -2576,7 +2599,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitDeclaredIdentifier(DeclaredIdentifier node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitDeclaredIdentifier(node);
   }
 
@@ -2588,13 +2611,13 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     var condition = node.condition;
 
     flowAnalysis.flow?.doStatement_bodyBegin(node);
-    node.body.accept(this);
+    node.body.accept2(this);
 
     flowAnalysis.flow?.doStatement_conditionBegin();
     analyzeExpression(condition, SharedTypeSchemaView(typeProvider.boolType));
     condition = popRewrite()!;
     var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-      flowAnalysis.flow?.getExpressionInfo(condition),
+      flowAnalysis.getExpressionInfo(condition),
     );
     boolExpressionVerifier.checkForNonBoolCondition(
       condition,
@@ -2602,7 +2625,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     );
 
     flowAnalysis.flow?.doStatement_end(
-      flowAnalysis.flow?.getExpressionInfo(condition),
+      flowAnalysis.getExpressionInfo(condition),
     );
     inferenceLogWriter?.exitStatement(node);
   }
@@ -2647,7 +2670,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     var whyNotPromotedArguments =
         <Map<SharedTypeView, NonPromotionReason> Function()>[];
 
-    node.typeArguments?.accept(this);
+    node.typeArguments?.accept2(this);
     var rewrittenExpression = elementResolver.visitDotShorthandInvocation(
       node,
       whyNotPromotedArguments: whyNotPromotedArguments,
@@ -2717,7 +2740,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitDoubleLiteral(node as DoubleLiteralImpl);
     inferenceLogWriter?.exitExpression(node);
   }
@@ -2734,28 +2757,28 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     TypeImpl? imposedType,
   }) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     return imposedType ?? typeProvider.dynamicType;
   }
 
   @override
   void visitEmptyStatement(EmptyStatement node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitEnumConstantArguments(EnumConstantArguments node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitEnumConstantDeclaration(
     covariant EnumConstantDeclarationImpl node,
   ) {
-    node.documentationComment?.accept(this);
-    node.metadata.accept(this);
+    node.documentationComment?.accept2(this);
+    node.metadata.accept2(this);
     checkUnreachableNode(node);
 
     var fragment = node.declaredFragment!;
@@ -2837,7 +2860,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
         },
       );
 
-      arguments.typeArguments?.accept(this);
+      arguments.typeArguments?.accept2(this);
 
       var whyNotPromotedArguments =
           <Map<SharedTypeView, NonPromotionReason> Function()>[];
@@ -2859,7 +2882,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     try {
       enclosingClass = node.declaredFragment!.element;
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       elementResolver.visitEnumDeclaration(node);
     } finally {
       enclosingClass = outerType;
@@ -2869,7 +2892,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitExportDirective(covariant ExportDirectiveImpl node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitExportDirective(node);
   }
 
@@ -2916,7 +2939,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitExtendsClause(ExtendsClause node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -2925,7 +2948,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     try {
       enclosingExtension = node.declaredFragment!.element;
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       elementResolver.visitExtensionDeclaration(node);
     } finally {
       enclosingExtension = outerExtension;
@@ -2935,7 +2958,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitExtensionOnClause(ExtensionOnClause node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -2946,7 +2969,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     inferenceLogWriter?.enterExtensionOverride(node, contextType);
     var whyNotPromotedArguments =
         <Map<SharedTypeView, NonPromotionReason> Function()>[];
-    node.typeArguments?.accept(this);
+    node.typeArguments?.accept2(this);
 
     var receiverContextType = ExtensionMemberResolver(
       this,
@@ -2990,7 +3013,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     try {
       enclosingClass = node.declaredFragment!.element;
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       elementResolver.visitExtensionTypeDeclaration(node);
     } finally {
       enclosingClass = outerType;
@@ -3003,7 +3026,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       assert(_thisType == null);
       _setupThisType();
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       elementResolver.visitFieldDeclaration(node);
     } finally {
       _thisType = null;
@@ -3036,7 +3059,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       formalParameters: null,
       operation: () {
         checkUnreachableNode(node);
-        node.visitChildren(this);
+        node.visitChildren2(this);
       },
     );
   }
@@ -3061,9 +3084,9 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     try {
       enclosingFunction = element;
       checkUnreachableNode(node);
-      node.documentationComment?.accept(this);
-      node.metadata.accept(this);
-      node.returnType?.accept(this);
+      node.documentationComment?.accept2(this);
+      node.metadata.accept2(this);
+      node.returnType?.accept2(this);
 
       if (isLocal) {
         flowAnalysis.flow!.functionExpression_begin(node);
@@ -3108,7 +3131,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   void visitFunctionDeclarationStatement(FunctionDeclarationStatement node) {
     inferenceLogWriter?.enterStatement(node);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     inferenceLogWriter?.exitStatement(node);
   }
 
@@ -3195,20 +3218,20 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitFunctionTypeAlias(FunctionTypeAlias node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitFunctionTypeAlias(node);
   }
 
   @override
   void visitGenericFunctionType(GenericFunctionType node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitGenericTypeAlias(GenericTypeAlias node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitGenericTypeAlias(node);
   }
 
@@ -3283,7 +3306,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitImplementsClause(ImplementsClause node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -3297,13 +3320,13 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       SharedTypeSchemaView(UnknownInferredType.instance),
     );
     popRewrite();
-    node.typeArguments?.accept(this);
+    node.typeArguments?.accept2(this);
   }
 
   @override
   void visitImportDirective(ImportDirective node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitImportDirective(node as ImportDirectiveImpl);
   }
 
@@ -3352,7 +3375,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     );
     popRewrite();
     var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-      flowAnalysis.flow?.getExpressionInfo(node.index),
+      flowAnalysis.getExpressionInfo(node.index),
     );
     checkIndexExpressionIndex(
       node.index,
@@ -3406,7 +3429,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitIntegerLiteral(
       node as IntegerLiteralImpl,
       contextType: contextType,
@@ -3426,7 +3449,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitInterpolationString(InterpolationString node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -3444,7 +3467,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     popRewrite();
 
     checkUnreachableNode(node.type);
-    node.type.accept(this);
+    node.type.accept2(this);
 
     typeAnalyzer.visitIsExpression(node);
     flowAnalysis.isExpression(node);
@@ -3459,7 +3482,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     inferenceLogWriter?.enterStatement(node);
     flowAnalysis.labeledStatement_enter(node);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     flowAnalysis.labeledStatement_exit(node);
     inferenceLogWriter?.exitStatement(node);
   }
@@ -3467,7 +3490,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitLibraryDirective(LibraryDirective node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitLibraryDirective(node);
   }
 
@@ -3503,7 +3526,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     popRewrite();
 
     flowAnalysis.flow?.nullAwareMapEntry_valueBegin(
-      flowAnalysis.flow?.getExpressionInfo(node.key),
+      flowAnalysis.getExpressionInfo(node.key),
       keyType,
       isKeyNullAware: node.keyQuestion != null,
     );
@@ -3538,11 +3561,11 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       assert(_thisType == null);
       _setupThisType();
       checkUnreachableNode(node);
-      node.documentationComment?.accept(this);
-      node.metadata.accept(this);
-      node.returnType?.accept(this);
-      node.typeParameters?.accept(this);
-      node.parameters?.accept(this);
+      node.documentationComment?.accept2(this);
+      node.metadata.accept2(this);
+      node.returnType?.accept2(this);
+      node.typeParameters?.accept2(this);
+      node.parameters?.accept2(this);
 
       flowAnalysis.bodyOrInitializer_enter(node, element.formalParameters);
       flowAnalysis.executableDeclaration_enter(
@@ -3596,7 +3619,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       nullSafetyDeadCodeVerifier.visitNode(node.methodName);
     }
 
-    node.typeArguments?.accept(this);
+    node.typeArguments?.accept2(this);
     elementResolver.visitMethodInvocation(
       node,
       whyNotPromotedArguments: whyNotPromotedArguments,
@@ -3633,7 +3656,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     try {
       enclosingClass = node.declaredFragment!.element;
       checkUnreachableNode(node);
-      node.visitChildren(this);
+      node.visitChildren2(this);
       elementResolver.visitMixinDeclaration(node);
     } finally {
       enclosingClass = outerType;
@@ -3648,7 +3671,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitMixinOnClause(MixinOnClause node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -3670,18 +3693,18 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     // But there might be type arguments with Expression(s), such as default
     // values for formal parameters of GenericFunctionType(s). These are
     // invalid, but if they exist, they should be resolved.
-    node.typeArguments?.accept(this);
+    node.typeArguments?.accept2(this);
   }
 
   @override
   void visitNameWithTypeParameters(NameWithTypeParameters node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitNativeClause(NativeClause node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -3724,9 +3747,9 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     TypeImpl contextType = UnknownInferredType.instance,
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitNullLiteral(node as NullLiteralImpl);
-    flowAnalysis.flow?.storeExpressionInfo(
+    flowAnalysis.storeExpressionInfo(
       node,
       flowAnalysis.flow?.nullLiteral(SharedTypeView(node.typeOrThrow)),
     );
@@ -3744,10 +3767,10 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     analyzeExpression(node.expression, SharedTypeSchemaView(contextType));
     popRewrite();
     typeAnalyzer.visitParenthesizedExpression(node);
-    flowAnalysis.flow?.storeExpressionInfo(
+    flowAnalysis.storeExpressionInfo(
       node,
       flowAnalysis.flow?.parenthesizedExpression(
-        flowAnalysis.flow?.getExpressionInfo(node.expression),
+        flowAnalysis.getExpressionInfo(node.expression),
       ),
     );
     inferenceLogWriter?.exitExpression(node);
@@ -3756,14 +3779,14 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitPartDirective(PartDirective node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitPartDirective(node);
   }
 
   @override
   void visitPartOfDirective(PartOfDirective node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitPartOfDirective(node);
   }
 
@@ -3795,7 +3818,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   void visitPatternVariableDeclaration(
     covariant PatternVariableDeclarationImpl node,
   ) {
-    node.metadata.accept(this);
+    node.metadata.accept2(this);
     var patternSchema = analyzePatternVariableDeclaration(
       node,
       node.pattern,
@@ -3812,7 +3835,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   ) {
     inferenceLogWriter?.enterStatement(node);
     checkUnreachableNode(node);
-    node.declaration.accept(this);
+    node.declaration.accept2(this);
     inferenceLogWriter?.exitStatement(node);
   }
 
@@ -3917,8 +3940,8 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       assert(_thisType == null);
       _setupThisType();
       checkUnreachableNode(node);
-      node.documentationComment?.accept(this);
-      node.metadata.accept(this);
+      node.documentationComment?.accept2(this);
+      node.metadata.accept2(this);
 
       if (primaryConstructorDeclaration != null) {
         flowAnalysis.bodyOrInitializer_enter(node, element!.formalParameters);
@@ -3929,7 +3952,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
         );
       }
 
-      node.initializers.accept(this);
+      node.initializers.accept2(this);
       node.body.resolve(this, returnType is DynamicType ? null : returnType);
 
       if (primaryConstructorDeclaration != null) {
@@ -3945,12 +3968,12 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
 
   @override
   void visitPrimaryConstructorDeclaration(PrimaryConstructorDeclaration node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitPrimaryConstructorName(PrimaryConstructorName node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -4004,14 +4027,14 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     // it here. But there might be types with Expression(s), such as default
     // values for formal parameters of GenericFunctionType(s). These are
     // invalid, but if they exist, they should be resolved.
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitRecordTypeAnnotationNamedField(
     RecordTypeAnnotationNamedField node,
   ) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitRecordTypeAnnotationNamedField(node);
   }
 
@@ -4019,14 +4042,14 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   void visitRecordTypeAnnotationNamedFields(
     RecordTypeAnnotationNamedFields node,
   ) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitRecordTypeAnnotationPositionalField(
     RecordTypeAnnotationPositionalField node,
   ) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitRecordTypeAnnotationPositionalField(node);
   }
 
@@ -4075,7 +4098,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitRethrowExpression(node as RethrowExpressionImpl);
     flowAnalysis.flow?.handleExit();
     inferenceLogWriter?.exitExpression(node);
@@ -4140,7 +4163,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitSimpleStringLiteral(node as SimpleStringLiteralImpl);
     inferenceLogWriter?.exitExpression(node);
   }
@@ -4179,7 +4202,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitStringInterpolation(node as StringInterpolationImpl);
     inferenceLogWriter?.exitExpression(node);
   }
@@ -4220,7 +4243,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitSuperExpression(node);
     typeAnalyzer.visitSuperExpression(node as SuperExpressionImpl);
     inferenceLogWriter?.exitExpression(node);
@@ -4272,7 +4295,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitSymbolLiteral(node as SymbolLiteralImpl);
     inferenceLogWriter?.exitExpression(node);
   }
@@ -4284,7 +4307,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     typeAnalyzer.visitThisExpression(node as ThisExpressionImpl);
     _insertImplicitCallReference(node, contextType: contextType);
     inferenceLogWriter?.exitExpression(node);
@@ -4310,7 +4333,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitTopLevelVariableDeclaration(TopLevelVariableDeclaration node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitTopLevelVariableDeclaration(node);
   }
 
@@ -4331,7 +4354,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     if (catchClauses.isNotEmpty) {
       flow.tryCatchStatement_bodyBegin();
     }
-    body.accept(this);
+    body.accept2(this);
     nullSafetyDeadCodeVerifier.flowEnd(node.body);
     nullSafetyDeadCodeVerifier.tryStatementEnter(node);
     if (catchClauses.isNotEmpty) {
@@ -4349,7 +4372,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
           catchClause.stackTraceParameter?.declaredFragment?.element
               as PromotableElementImpl?,
         );
-        catchClause.accept(this);
+        catchClause.accept2(this);
         flow.tryCatchStatement_catchEnd();
         nullSafetyDeadCodeVerifier.flowEnd(catchClause.body);
       }
@@ -4362,7 +4385,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       flow.tryFinallyStatement_finallyBegin(
         catchClauses.isNotEmpty ? node : body,
       );
-      finallyBlock.accept(this);
+      finallyBlock.accept2(this);
       flow.tryFinallyStatement_end();
     }
     inferenceLogWriter?.exitStatement(node);
@@ -4371,7 +4394,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitTypeArgumentList(TypeArgumentList node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -4381,7 +4404,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   }) {
     inferenceLogWriter?.enterExpression(node, contextType);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     node.recordStaticType(typeProvider.typeType, resolver: this);
     inferenceLogWriter?.exitExpression(node);
   }
@@ -4389,14 +4412,14 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitTypeParameter(TypeParameter node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitTypeParameter(node);
   }
 
   @override
   void visitTypeParameterList(TypeParameterList node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -4414,7 +4437,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
       flowAnalysis.flow?.initialize(
         node.declaredFragment?.element as PromotableElementImpl,
         SharedTypeView(initializerStaticType),
-        flowAnalysis.flow?.getExpressionInfo(initializer),
+        flowAnalysis.getExpressionInfo(initializer),
         isFinal: parent.isFinal,
         isLate: parent.isLate,
         isImplicitlyTyped: declaredType == null,
@@ -4430,7 +4453,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   ) {
     flowAnalysis.variableDeclarationList(node);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     elementResolver.visitVariableDeclarationList(node);
   }
 
@@ -4438,7 +4461,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   void visitVariableDeclarationStatement(VariableDeclarationStatement node) {
     inferenceLogWriter?.enterStatement(node);
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
     inferenceLogWriter?.exitStatement(node);
   }
 
@@ -4453,7 +4476,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     analyzeExpression(condition, SharedTypeSchemaView(typeProvider.boolType));
     condition = popRewrite()!;
     var whyNotPromoted = flowAnalysis.flow?.whyNotPromoted(
-      flowAnalysis.flow?.getExpressionInfo(condition),
+      flowAnalysis.getExpressionInfo(condition),
     );
 
     boolExpressionVerifier.checkForNonBoolCondition(
@@ -4463,9 +4486,9 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
 
     flowAnalysis.flow?.whileStatement_bodyBegin(
       node,
-      flowAnalysis.flow?.getExpressionInfo(condition),
+      flowAnalysis.getExpressionInfo(condition),
     );
-    node.body.accept(this);
+    node.body.accept2(this);
     flowAnalysis.flow?.whileStatement_end();
     nullSafetyDeadCodeVerifier.flowEnd(node.body);
     // TODO(brianwilkerson): If the loop can only be exited because the condition
@@ -4476,7 +4499,7 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
   @override
   void visitWithClause(WithClause node) {
     checkUnreachableNode(node);
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -4807,11 +4830,11 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
           ),
         ):
         case var expression:
-          flow.storeExpressionInfo(
+          flowAnalysis.storeExpressionInfo(
             expression,
             startNullShorting(
               null,
-              flow.getExpressionInfo(expression),
+              flowAnalysis.getExpressionInfo(expression),
               SharedTypeView(expression.staticType ?? typeProvider.dynamicType),
             ),
           );
@@ -4823,12 +4846,12 @@ class ResolverVisitor extends ThrowingAstVisitor<void>
     var fragment = node.declaredFragment!;
     checkUnreachableNode(node);
 
-    node.documentationComment?.accept(this);
-    node.metadata.accept(this);
-    node.type?.accept(this);
+    node.documentationComment?.accept2(this);
+    node.metadata.accept2(this);
+    node.type?.accept2(this);
     if (node.functionTypedSuffix case var functionTypedSuffix?) {
-      functionTypedSuffix.typeParameters?.accept(this);
-      functionTypedSuffix.formalParameters.accept(this);
+      functionTypedSuffix.typeParameters?.accept2(this);
+      functionTypedSuffix.formalParameters.accept2(this);
     }
 
     if (node.defaultClause case var defaultClause?) {
@@ -5219,6 +5242,18 @@ class _WhyNotPromotedVisitor
   }
 
   @override
+  List<DiagnosticMessage> visitDemoteViaSuspension(
+    DemoteViaSuspension<PromotableElementImpl> reason,
+  ) {
+    var node = reason.node as AstNode;
+    if (_dataForTesting != null) {
+      _dataForTesting.nonPromotionReasonTargets[node] = reason.shortName;
+    }
+    var variableName = reason.variable.name;
+    return [_contextMessageForSuspension(variableName, node, reason)];
+  }
+
+  @override
   List<DiagnosticMessage> visitPropertyNotPromotedForInherentReason(
     PropertyNotPromotedForInherentReason reason,
   ) {
@@ -5353,6 +5388,22 @@ class _WhyNotPromotedVisitor
         url: reason.documentationLink.url,
       ),
     ];
+  }
+
+  DiagnosticMessageImpl _contextMessageForSuspension(
+    String? variableName,
+    AstNode node,
+    DemoteViaSuspension<PromotableElementImpl> reason,
+  ) {
+    return DiagnosticMessageImpl(
+      filePath: source.fullName,
+      message:
+          "Variable '${variableName!}' could not be promoted due to an "
+          "'await' or 'yield'",
+      offset: node.offset,
+      length: node.length,
+      url: reason.documentationLink.url,
+    );
   }
 
   DiagnosticMessageImpl _contextMessageForWrite(

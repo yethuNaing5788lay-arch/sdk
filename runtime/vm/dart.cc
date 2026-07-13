@@ -472,6 +472,18 @@ void Dart::WaitForIsolateShutdown() {
 
 char* Dart::Cleanup() {
   ASSERT(Isolate::Current() == nullptr);
+  // Wait for the service and kernel isolates to finish starting up
+  // BEFORE we transition to kCleaningup. This ensures that their
+  // asynchronous boot sequences (which may perform DNS lookups or
+  // allocate native ports) can run to completion while the VM is
+  // still in the kInitialized phase.
+#if !defined(DART_PRECOMPILED_RUNTIME)
+  KernelIsolate::WaitForKernelPort();
+#endif
+#if !defined(PRODUCT)
+  ServiceIsolate::WaitForServiceIsolateStartup();
+#endif
+
   if (!DartInitializationState::StartCleanup()) {
     return Utils::StrDup("VM already terminated.");
   }
@@ -958,6 +970,8 @@ char* Dart::FeaturesString(IsolateGroup* isolate_group, Snapshot::Kind kind) {
     buffer.AddString(" x64");
 #elif defined(TARGET_ARCH_ARM)
     buffer.AddString(" arm");
+#elif defined(TARGET_ARCH_ARM64E)
+    buffer.AddString(" arm64e");
 #elif defined(TARGET_ARCH_ARM64)
     buffer.AddString(" arm64");
 #elif defined(TARGET_ARCH_RISCV32)

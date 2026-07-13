@@ -56,8 +56,13 @@ abstract class AbstractFixAllInWorkspaceCommandHandler
     }
 
     var workspace = DartChangeWorkspace(await server.currentSessions);
-    var processor = BulkFixProcessor(server.instrumentationService, workspace);
+    var processor = BulkFixProcessor(
+      server.instrumentationService,
+      workspace,
+      byteStore: server.byteStore,
+    );
 
+    // ignore: unawaited_futures
     progress.begin('Computing fixes…');
     try {
       var result = await processor.fixErrors(
@@ -85,6 +90,7 @@ abstract class AbstractFixAllInWorkspaceCommandHandler
       );
       return await sendWorkspaceEditToClient(edit);
     } finally {
+      // ignore: unawaited_futures
       progress.end();
     }
   }

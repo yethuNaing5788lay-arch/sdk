@@ -236,12 +236,22 @@ config("compiler") {
         common_mac_flags += [ "--target=x86_64-apple-macos" ]
       } else if (current_cpu == "arm64") {
         common_mac_flags += [ "--target=arm64-apple-macos" ]
+      } else if (current_cpu == "arm64e") {
+        common_mac_flags += [ "--target=arm64e-apple-macos" ]
+
+        # Default lld does not work.
+        ldflags += [ "-fuse-ld=ld" ]
       }
     } else if (is_ios) {
       if (current_cpu == "x64") {
         common_mac_flags += [ "--target=x86_64-apple-darwin" ]
       } else if (current_cpu == "arm64") {
         common_mac_flags += [ "--target=arm64-apple-darwin" ]
+      } else if (current_cpu == "arm64e") {
+        common_mac_flags += [ "--target=arm64e-apple-darwin" ]
+
+        # Default lld does not work.
+        ldflags += [ "-fuse-ld=ld" ]
       }
     }
 
@@ -389,13 +399,6 @@ config("compiler") {
       "-funwind-tables",
       "-fno-short-enums",
     ]
-    if (is_asan) {
-      # Android build relies on -Wl,--gc-sections removing unreachable code.
-      # ASan instrumentation for globals inhibits this and results in a library
-      # with unresolvable relocations.
-      # TODO(eugenis): find a way to reenable this.
-      cflags += [ "-mllvm -asan-globals=0" ]
-    }
 
     defines += [ "ANDROID" ]
 
@@ -444,7 +447,8 @@ config("compiler") {
     } else if (is_linux) {
       toolchain_stamp_file =
           "//buildtools/linux-x64/clang/.versions/clang.cipd_version"
-    } else if ((is_mac || is_ios) && host_cpu == "arm64") {
+    } else if ((is_mac || is_ios) &&
+               (host_cpu == "arm64" || host_cpu == "arm64e")) {
       toolchain_stamp_file =
           "//buildtools/mac-arm64/clang/.versions/clang.cipd_version"
     } else if (is_mac || is_ios) {
@@ -639,11 +643,11 @@ if (is_win) {
       "-Wno-ignored-pragma-optimize",  # icu, double-conversion
       "-Wno-macro-redefined",
       "-Wno-microsoft-cast",
-      "-Wno-microsoft-unqualified-friend",
       "-Wno-unknown-argument",  # icu
       "-Wno-unused-value",  # crashpad
       "-Wno-deprecated-non-prototype",  # zlib
     ]
+    default_warning_flags_cc += [ "-Wno-microsoft-unqualified-friend" ]
   } else {
     default_warning_flags += [
       # Permanent.
@@ -793,7 +797,11 @@ config("no_rtti") {
   if (is_win) {
     cflags_cc = [ "/GR-" ]
   } else {
-    rtti_flags = [ "-fno-rtti" ]
+    if (is_android && is_asan) {
+      rtti_flags = [ "-frtti" ]
+    } else {
+      rtti_flags = [ "-fno-rtti" ]
+    }
     cflags_cc = rtti_flags
     cflags_objcc = rtti_flags
   }

@@ -21,6 +21,7 @@ acr
 acts
 adapter
 adaptor
+additions
 adequately
 adopted
 advantages
@@ -30,6 +31,7 @@ aer
 af
 albeit
 aligns
+alleged
 allocations
 allowlist
 allowlisting
@@ -102,6 +104,7 @@ bitmask
 bivariant
 bkonyi
 bla
+blabla
 blah
 bleeding
 bler
@@ -123,6 +126,7 @@ brave
 brown
 bt
 btw
+bubble
 builddir
 bulkcompile
 busy
@@ -298,6 +302,7 @@ dw
 e's
 ea
 ease
+eb
 ec
 echo
 edits
@@ -334,6 +339,7 @@ expanded
 expansive
 explainer
 extern
+extracting
 f\u
 fa
 fac
@@ -362,6 +368,7 @@ flipped
 floor
 fluctuate
 foo'bar'baz
+foobarbaz
 foos
 forbidden
 forces
@@ -618,6 +625,7 @@ operate
 ops
 optimal
 oracle
+orderings
 ot
 outbound
 outliers
@@ -646,9 +654,11 @@ periodic
 periodically
 perm
 perms
+permutations
 person
 ph
 phrase
+picks
 pid
 pink
 placement
@@ -710,6 +720,7 @@ reenable
 reexport
 referential
 refname
+refs
 refusing
 regards
 regenerate
@@ -742,6 +753,7 @@ revisions
 risky
 rk
 rnone
+route
 routines
 row
 rows
@@ -795,6 +807,7 @@ silence
 simplistic
 slashes
 sleep
+slice
 slight
 sliver
 sm
@@ -828,6 +841,7 @@ stats
 stay
 std
 stopwatches
+streams
 stress
 stretch
 stringy
@@ -964,6 +978,7 @@ worse
 wrongly
 ws
 x's
+xb
 xf
 xfq
 xlate

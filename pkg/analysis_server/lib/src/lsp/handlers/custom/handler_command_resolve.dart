@@ -53,7 +53,7 @@ class CommandResolveHandler
   }
 
   /// Handles resolving a command that relates to a refactor by using
-  /// [RefactorCommandResolver].
+  /// [RefactorCommandResolver] to delegate to the [RefactoringProducer].
   Future<ErrorOr<InteractiveExecuteCommandParams>> _handleRefactorCommand(
     InteractiveExecuteCommandParams command,
     RefactoringProducerGenerator generator,

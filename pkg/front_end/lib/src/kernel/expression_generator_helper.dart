@@ -26,16 +26,16 @@ import 'constness.dart' show Constness;
 import 'expression_generator.dart';
 import 'internal_ast.dart';
 
-/// Alias for Expression | Generator
+/// Alias for InternalExpression | Generator
 typedef Expression_Generator = dynamic;
 
-/// Alias for Expression | Generator | Builder
+/// Alias for InternalExpression | Generator | Builder
 typedef Expression_Generator_Builder = dynamic;
 
-/// Alias for Expression | Generator | Initializer
+/// Alias for InternalExpression | Generator | Initializer
 typedef Expression_Generator_Initializer = dynamic;
 
-/// Alias for Expression | Initializer
+/// Alias for InternalExpression | Initializer
 typedef Expression_Initializer = dynamic;
 
 abstract class ExpressionGeneratorHelper {
@@ -59,14 +59,14 @@ abstract class ExpressionGeneratorHelper {
 
   ExtensionScope get extensionScope;
 
-  InvalidExpression buildProblem({
+  InternalInvalidExpression buildProblem({
     required Message message,
     required Uri fileUri,
     required int fileOffset,
     required int length,
     List<LocatedMessage>? context,
     bool errorHasBeenReported = false,
-    Expression? expression,
+    InternalExpression? expression,
   });
 
   MemberLookupResult? lookupSuperConstructor(
@@ -74,7 +74,7 @@ abstract class ExpressionGeneratorHelper {
     LibraryBuilder accessingLibrary,
   );
 
-  Expression toValue(Object? node);
+  InternalExpression toValue(Object? node);
 
   String superConstructorNameForDiagnostics(String name);
 
@@ -105,34 +105,34 @@ abstract class ExpressionGeneratorHelper {
     bool isTypeArgumentsInForest = false,
   });
 
-  List<Initializer> createFieldInitializer(
+  List<InternalInitializer> createFieldInitializer(
     String name,
     int fieldNameOffset,
-    Expression expression, {
+    InternalExpression expression, {
     FormalParameterBuilder? formal,
   });
 
-  Initializer buildSuperInitializer(
+  InternalInitializer buildSuperInitializer(
     bool isSynthetic,
     Constructor constructor,
     ActualArguments arguments, [
     int offset = TreeNode.noOffset,
   ]);
 
-  Initializer buildRedirectingInitializer(
+  InternalInitializer buildRedirectingInitializer(
     Name name,
     ActualArguments arguments, {
     required int fileOffset,
   });
 
-  Expression buildStaticInvocation({
+  InternalExpression buildStaticInvocation({
     required Procedure target,
     required TypeArguments? typeArguments,
     required ActualArguments arguments,
     required int fileOffset,
   });
 
-  InvalidExpression buildUnresolvedError(
+  InternalInvalidExpression buildUnresolvedError(
     String name,
     int fileOffset, {
     bool isSuper,
@@ -141,25 +141,26 @@ abstract class ExpressionGeneratorHelper {
     bool errorHasBeenReported,
   });
 
-  Expression wrapInDeferredCheck(
-    Expression expression,
+  InternalExpression wrapInDeferredCheck(
+    InternalExpression expression,
     PrefixBuilder prefix,
     int charOffset,
   );
 
   bool isIdentical(Member? member);
 
-  Expression buildMethodInvocation(
-    Expression receiver,
+  InternalExpression buildMethodInvocation(
+    InternalExpression receiver,
     Name name,
     TypeArguments? typeArguments,
     ActualArguments arguments,
     int offset, {
     bool isConstantExpression = false,
     bool isNullAware = false,
+    bool isImplicitThis = false,
   });
 
-  Expression buildSuperInvocation(
+  InternalExpression buildSuperInvocation(
     Name name,
     TypeArguments? typeArguments,
     ActualArguments arguments,
@@ -191,15 +192,15 @@ abstract class ExpressionGeneratorHelper {
 
   void addProblemErrorIfConst(Message message, int charOffset, int length);
 
-  Expression buildProblemErrorIfConst(
+  InternalExpression buildProblemErrorIfConst(
     Message message,
     int charOffset,
     int length,
   );
 
-  Expression evaluateArgumentsBefore(
+  InternalExpression evaluateArgumentsBefore(
     ActualArguments arguments,
-    Expression expression,
+    InternalExpression expression,
   );
 
   DartType buildDartType(
@@ -220,12 +221,12 @@ abstract class ExpressionGeneratorHelper {
     int charOffset,
   );
 
-  /// Creates a synthetic variable declaration for the value of [expression].
-  InternalVariable createVariableDeclarationForValue(Expression expression);
-
   /// Creates a [VariableGet] of the [variable] using [charOffset] as the file
   /// offset of the created node.
-  Expression createVariableGet(InternalVariable variable, int charOffset);
+  InternalExpression createVariableGet(
+    InternalVariable variable,
+    int charOffset,
+  );
 
   /// Registers that [variable] is read from.
   ///
@@ -258,8 +259,8 @@ abstract class ExpressionGeneratorHelper {
   /// If [inImplicitCreationContext] is `false`, then the expression is
   /// preceded by `new` or `const`, and an error should be reported instead of
   /// creating the instantiation and invocation.
-  Expression createInstantiationAndInvocation(
-    Expression Function() receiverFunction,
+  InternalExpression createInstantiationAndInvocation(
+    InternalExpression Function() receiverFunction,
     List<TypeBuilder>? typeArguments,
     String className,
     String constructorName,
@@ -270,6 +271,7 @@ abstract class ExpressionGeneratorHelper {
   });
 
   /// Registers a read of the internal variable representing `this`.
+  // TODO(johnniwinther): This should return the [InternalThisExpression].
   void readInternalThisVariable();
 }
 
@@ -322,38 +324,25 @@ enum UnresolvedKind { Unknown, Member, Method, Getter, Setter, Constructor }
 /// [ConstructorResolutionResult] is the root of the sealed hierarchy of
 /// results, which then branches into the successful, the unresolved, and the
 /// erroneous cases.
-sealed class ConstructorResolutionResult {}
+sealed class ConstructorResolutionResult;
 
-class SuccessfulConstructorResolutionResult
-    extends ConstructorResolutionResult {
-  final Expression constructorInvocation;
-
-  new(this.constructorInvocation);
-}
+class SuccessfulConstructorResolutionResult(
+  final InternalExpression constructorInvocation,
+) extends ConstructorResolutionResult;
 
 /// Erroneous case of [ConstructorResolutionResult].
-class ErroneousConstructorResolutionResult extends ConstructorResolutionResult {
+class ErroneousConstructorResolutionResult({
   /// The expression signaling the error, typically an [InvalidExpression].
-  final Expression errorExpression;
-
-  new({required this.errorExpression});
-}
+  required final InternalExpression errorExpression,
+}) extends ConstructorResolutionResult;
 
 /// Unresolved case of [UnresolvedConstructorResolutionResult].
-class UnresolvedConstructorResolutionResult
-    extends ConstructorResolutionResult {
-  final ExpressionGeneratorHelper _helper;
-  final String errorName;
-  final int charOffset;
-  final UnresolvedKind unresolvedKind;
-
-  new({
-    required this.errorName,
-    required this.charOffset,
-    required ExpressionGeneratorHelper helper,
-    this.unresolvedKind = UnresolvedKind.Constructor,
-  }) : _helper = helper;
-
+class UnresolvedConstructorResolutionResult({
+  required final String errorName,
+  required final int charOffset,
+  required final ExpressionGeneratorHelper _helper,
+  final UnresolvedKind unresolvedKind = UnresolvedKind.Constructor,
+}) extends ConstructorResolutionResult {
   /// Constructs the expression signaling the unresolved error.
   ///
   /// The construction of the expression signaling the error is delayed from
@@ -361,7 +350,7 @@ class UnresolvedConstructorResolutionResult
   /// [UnresolvedConstructorResolutionResult], to allow for other resolution
   /// mechanisms to make their attempts, and only if they are also unsuccessful,
   /// build and signal the unresolved error.
-  Expression buildErrorExpression() {
+  InternalExpression buildErrorExpression() {
     return _helper.buildUnresolvedError(
       errorName,
       charOffset,

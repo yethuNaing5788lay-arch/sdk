@@ -13,7 +13,7 @@ import 'package:analyzer/src/dart/ast/ast.dart';
 import 'package:analyzer/src/dart/element/element.dart';
 import 'package:analyzer/src/fine/manifest_context.dart';
 import 'package:analyzer/src/utilities/extensions/collection.dart';
-import 'package:collection/collection.dart';
+import 'package:analyzer/src/utilities/growable_type_data.dart';
 import 'package:meta/meta.dart';
 
 @visibleForTesting
@@ -77,7 +77,7 @@ class ManifestNode {
 
   factory ManifestNode.encode(EncodeContext context, AstNode node) {
     var buffer = StringBuffer();
-    var lengthList = <int>[];
+    var lengthList = GrowableUint32List();
 
     var token = node.beginToken;
     while (true) {
@@ -93,17 +93,17 @@ class ManifestNode {
       indexOfTypeParameter: context.indexOfTypeParameter,
       indexOfFormalParameter: context.indexOfFormalParameter,
     );
-    node.accept(collector);
+    node.accept2(collector);
 
     if (collector.isValid) {
       return ManifestNode._(
         isValid: true,
         tokenBuffer: buffer.toString(),
-        tokenLengthList: Uint32List.fromList(lengthList),
+        tokenLengthList: lengthList.takeAndReset(),
         elements: collector.map.keys
             .map((element) => ManifestElement.encode(context, element))
             .toFixedList(),
-        elementIndexList: Uint32List.fromList(collector.elementIndexList),
+        elementIndexList: collector.elementIndexList.takeAndReset(),
       );
     } else {
       return ManifestNode._(
@@ -171,7 +171,7 @@ class ManifestNode {
       indexOfTypeParameter: context.indexOfTypeParameter,
       indexOfFormalParameter: context.indexOfFormalParameter,
     );
-    node.accept(collector);
+    node.accept2(collector);
 
     // Must reference the same elements.
     if (collector.map.length != elements.length) {
@@ -184,10 +184,7 @@ class ManifestNode {
     }
 
     // Must reference elements in the same order.
-    if (!const ListEquality<int>().equals(
-      collector.elementIndexList,
-      elementIndexList,
-    )) {
+    if (!collector.elementIndexList.equalToUint32List(elementIndexList)) {
       return false;
     }
 
@@ -206,18 +203,22 @@ class ManifestNode {
     return reader.readTypedList(() => ManifestNode.read(reader));
   }
 
+  static List<ManifestNode?> readListOfOptional(BinaryReader reader) {
+    return reader.readTypedList(() => ManifestNode.readOptional(reader));
+  }
+
   static ManifestNode? readOptional(BinaryReader reader) {
     return reader.readOptionalObject(() => ManifestNode.read(reader));
   }
 }
 
-class _ElementCollector extends GeneralizingAstVisitor<void> {
+class _ElementCollector extends GeneralizingAstVisitor2<void> {
   bool isValid = true;
   final int Function(TypeParameterElementImpl) indexOfTypeParameter;
   final int Function(FormalParameterElementImpl) indexOfFormalParameter;
   final List<TypeParameterElement> _localTypeParameters = [];
   final Map<Element, int> map = Map.identity();
-  final List<int> elementIndexList = [];
+  final GrowableUint32List elementIndexList = GrowableUint32List();
 
   _ElementCollector({
     required this.indexOfTypeParameter,
@@ -226,33 +227,33 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitAdjacentStrings(AdjacentStrings node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitAnnotation(Annotation node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
     _addElement(node.element);
   }
 
   @override
   void visitArgumentList(ArgumentList node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitAsExpression(AsExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitAssertInitializer(AssertInitializer node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitBinaryExpression(BinaryExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
     _addElement(node.element);
   }
 
@@ -261,23 +262,23 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitConditionalExpression(ConditionalExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitConstructorFieldInitializer(ConstructorFieldInitializer node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitConstructorName(ConstructorName node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
     _addElement(node.element);
   }
 
   @override
   void visitConstructorReference(ConstructorReference node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -285,7 +286,7 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitFormalParameterList(FormalParameterList node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -300,7 +301,7 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
     _localTypeParameters.addAll(localTypeParameters);
     try {
-      node.visitChildren(this);
+      node.visitChildren2(this);
     } finally {
       for (var i = 0; i < localTypeParameters.length; i++) {
         _localTypeParameters.removeLast();
@@ -315,7 +316,7 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitInstanceCreationExpression(InstanceCreationExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -323,7 +324,7 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitInterpolationExpression(InterpolationExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -331,24 +332,24 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitIsExpression(IsExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitListLiteral(ListLiteral node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitMapLiteralEntry(MapLiteralEntry node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitMethodInvocation(MethodInvocation node) {
     if (node.methodName.element case TopLevelFunctionElement element) {
       if (element.isDartCoreIdentical) {
-        node.visitChildren(this);
+        node.visitChildren2(this);
         return;
       }
     }
@@ -357,12 +358,12 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitNamedArgument(NamedArgument node) {
-    node.argumentExpression.accept(this);
+    node.argumentExpression.accept2(this);
   }
 
   @override
   void visitNamedType(NamedType node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
     _addElement(node.element);
   }
 
@@ -376,41 +377,41 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitParenthesizedExpression(ParenthesizedExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitPrefixedIdentifier(PrefixedIdentifier node) {
-    node.prefix.accept(this);
+    node.prefix.accept2(this);
     _addElement(node.element);
   }
 
   @override
   void visitPrefixExpression(PrefixExpression node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
     _addElement(node.element);
   }
 
   @override
   void visitPropertyAccess(PropertyAccess node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitRedirectingConstructorInvocation(
     RedirectingConstructorInvocation node,
   ) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitRegularFormalParameter(RegularFormalParameter node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitSetOrMapLiteral(SetOrMapLiteral node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -423,17 +424,17 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitSpreadElement(SpreadElement node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitStringInterpolation(StringInterpolation node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitSuperConstructorInvocation(SuperConstructorInvocation node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
@@ -441,22 +442,22 @@ class _ElementCollector extends GeneralizingAstVisitor<void> {
 
   @override
   void visitTypeArgumentList(TypeArgumentList node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitTypeLiteral(TypeLiteral node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitTypeParameter(TypeParameter node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   @override
   void visitTypeParameterList(TypeParameterList node) {
-    node.visitChildren(this);
+    node.visitChildren2(this);
   }
 
   void _addElement(Element? element) {
@@ -529,6 +530,26 @@ extension ListOfManifestNodeExtension on List<ManifestNode> {
 
   void writeList(BinaryWriter writer) {
     writer.writeList(this, (x) => x.write(writer));
+  }
+}
+
+extension ListOfManifestNodeOrNullExtension on List<ManifestNode?> {
+  bool match(MatchContext context, List<AstNode?> nodes) {
+    if (nodes.length != length) {
+      return false;
+    }
+    for (var i = 0; i < length; i++) {
+      if (!this[i].match(context, nodes[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void writeList(BinaryWriter writer) {
+    writer.writeList(this, (node) {
+      node.writeOptional(writer);
+    });
   }
 }
 

@@ -334,7 +334,19 @@ namespace RTN = dart;
 namespace RTN = dart::compiler::target;
 #endif  //  defined(DART_PRECOMPILED_RUNTIME)
 
-class Object {
+// Explicitly choose the discriminator, since we can't ask what the default is.
+#define HANDLE_DISCRIMINATOR 0x1234
+
+#if defined(HOST_ARCH_ARM64E)
+#define NO_VTABLE_EXTRA_DISCRIMINATION                                         \
+  [[clang::ptrauth_vtable_pointer(default_key, address_discrimination,         \
+                                  custom_discrimination,                       \
+                                  HANDLE_DISCRIMINATOR)]]
+#else
+#define NO_VTABLE_EXTRA_DISCRIMINATION
+#endif
+
+class NO_VTABLE_EXTRA_DISCRIMINATION Object {
  public:
   using UntaggedObjectType = UntaggedObject;
   using ObjectPtrType = ObjectPtr;
@@ -707,13 +719,30 @@ class Object {
   // representation of C++ objects, but works okay in practice with
   // -fno-strict-vtable-pointers.
   cpp_vtable vtable() const {
-    cpp_vtable result;
-    memcpy(&result, reinterpret_cast<const void*>(this),  // NOLINT
-           sizeof(result));
-    return result;
+    void* data;
+    memcpy(&data, reinterpret_cast<const void*>(this),  // NOLINT
+           sizeof(cpp_vtable));
+#if defined(HOST_ARCH_ARM64E)
+    // Adjust the vtable pointer so it doesn't depend on the address of the
+    // prototype handle.
+    // Bad! Leaves the raw pointer in builtin_vtables_!
+    // TODO(63420): Why doesn't ptrauth_auth_and_resign work here?
+    data = ptrauth_auth_data(
+        data, ptrauth_key_cxx_vtable_pointer,
+        ptrauth_blend_discriminator(this, HANDLE_DISCRIMINATOR));
+#endif
+    return reinterpret_cast<cpp_vtable>(data);
   }
-  void set_vtable(cpp_vtable value) {
-    memcpy(reinterpret_cast<void*>(this), &value,  // NOLINT
+  void set_vtable(cpp_vtable data_in) {
+    void* data = reinterpret_cast<void*>(data_in);
+#if defined(HOST_ARCH_ARM64E)
+    // Resign the vtable pointer for the new handle's address.
+    // TODO(63420): Why doesn't ptrauth_auth_and_resign work here?
+    data = ptrauth_sign_unauthenticated(
+        data, ptrauth_key_cxx_vtable_pointer,
+        ptrauth_blend_discriminator(this, HANDLE_DISCRIMINATOR));
+#endif
+    memcpy(reinterpret_cast<void*>(this), &data,  // NOLINT
            sizeof(cpp_vtable));
   }
 
@@ -838,6 +867,12 @@ class Object {
     // Can't use Contains, as it uses tags_, which is set through this method.
     ASSERT(reinterpret_cast<uword>(addr) >= UntaggedObject::ToAddr(ptr()));
     *const_cast<FieldType*>(addr) = value;
+  }
+  template <typename FieldType, typename ValueType>
+  void StoreNonPointerUnaligned(const FieldType* addr, ValueType value) const {
+    // Can't use Contains, as it uses tags_, which is set through this method.
+    ASSERT(reinterpret_cast<uword>(addr) >= UntaggedObject::ToAddr(ptr()));
+    StoreUnaligned(const_cast<FieldType*>(addr), value);
   }
 
   template <typename FieldType, typename ValueType, std::memory_order order>
@@ -2719,7 +2754,7 @@ class ICData : public CallSiteData {
     kCachedICDataZeroArgTestedWithoutExactnessTrackingIdx = 0,
     kCachedICDataMaxArgsTestedWithoutExactnessTracking = 2,
     kCachedICDataOneArgWithExactnessTrackingIdx =
-        kCachedICDataZeroArgTestedWithoutExactnessTrackingIdx +
+            kCachedICDataZeroArgTestedWithoutExactnessTrackingIdx +
         kCachedICDataMaxArgsTestedWithoutExactnessTracking + 1,
     kCachedICDataArrayCount = kCachedICDataOneArgWithExactnessTrackingIdx + 1,
   };
@@ -6299,9 +6334,9 @@ class PcDescriptors : public Object {
   // The base argument is added to the PC offset for each entry.
   void WriteToBuffer(BaseTextBuffer* buffer, uword base) const;
 
- private:
-  static const char* KindAsStr(UntaggedPcDescriptors::Kind kind);
+  static const char* KindToCString(UntaggedPcDescriptors::Kind kind);
 
+ private:
   static PcDescriptorsPtr New(intptr_t length);
 
   void SetLength(intptr_t value) const;
@@ -9497,22 +9532,17 @@ class AbstractType : public Instance {
   bool IsObjectType() const { return type_class_id() == kInstanceCid; }
 
   // Check if this type represents the 'Object?' type.
-  bool IsNullableObjectType() const {
-    return IsObjectType() && (nullability() == Nullability::kNullable);
-  }
+  bool IsNullableObjectType() const { return IsObjectType() && IsNullable(); }
 
   // Check if this type represents a top type for subtyping,
-  // assignability and 'as' type tests.
+  // assignability, 'as' and 'is' type tests.
   //
   // Returns true if
   //  - any type is a subtype of this type;
   //  - any value can be assigned to a variable of this type;
   //  - 'as' type test always succeeds for this type.
-  bool IsTopTypeForSubtyping() const;
-
-  // Check if this type represents a top type for 'is' type tests.
-  // Returns true if 'is' type test always returns true for this type.
-  bool IsTopTypeForInstanceOf() const;
+  //  - 'is' type test always returns true for this type.
+  bool IsTopType() const;
 
   // Check if this type represents the 'bool' type.
   bool IsBoolType() const { return type_class_id() == kBoolCid; }
@@ -12213,7 +12243,8 @@ class Pointer : public Instance {
 class DynamicLibrary : public Instance {
  public:
   static DynamicLibraryPtr New(void* handle,
-                               bool canBeClosed,
+                               Dart_NativeAssetsDlsymCallback dlsym,
+                               Dart_NativeAssetsDlcloseCallback dlclose,
                                Heap::Space space = Heap::kNew);
 
   static intptr_t InstanceSize() {
@@ -12235,23 +12266,39 @@ class DynamicLibrary : public Instance {
     StoreNonPointer(&untag()->handle_, value);
   }
 
-  bool CanBeClosed() const {
+  Dart_NativeAssetsDlsymCallback Dlsym() const {
     ASSERT(!IsNull());
-    return untag()->canBeClosed_;
+    return LoadNonPointer<Dart_NativeAssetsDlsymCallback,
+                          std::memory_order_relaxed>(&untag()->dlsym_);
   }
 
-  void SetCanBeClosed(bool value) const {
+  void SetDlsym(Dart_NativeAssetsDlsymCallback value) const {
     ASSERT(!IsNull());
-    StoreNonPointer(&untag()->canBeClosed_, value);
+    StoreNonPointer<Dart_NativeAssetsDlsymCallback,
+                    Dart_NativeAssetsDlsymCallback, std::memory_order_relaxed>(
+        &untag()->dlsym_, value);
+  }
+
+  Dart_NativeAssetsDlcloseCallback Dlclose() const {
+    ASSERT(!IsNull());
+    return LoadNonPointer<Dart_NativeAssetsDlcloseCallback,
+                          std::memory_order_relaxed>(&untag()->dlclose_);
+  }
+
+  void SetDlclose(Dart_NativeAssetsDlcloseCallback value) const {
+    ASSERT(!IsNull());
+    StoreNonPointer<Dart_NativeAssetsDlcloseCallback,
+                    Dart_NativeAssetsDlcloseCallback,
+                    std::memory_order_relaxed>(&untag()->dlclose_, value);
   }
 
   bool IsClosed() const {
     ASSERT(!IsNull());
-    return untag()->isClosed_;
+    return untag()->is_closed_;
   }
 
   void SetClosed(bool value) const {
-    StoreNonPointer(&untag()->isClosed_, value);
+    StoreNonPointer(&untag()->is_closed_, value);
   }
 
  private:
